@@ -677,7 +677,7 @@ def save_sources(result: dict) -> None:
 # ── 설치 정보·만든 사람에게 전달 (구글 폼) ──
 # 동료가 [시작하기]를 누를 때, 2주·한 달째 질문에 답할 때만 보낸다. 화면에 미리 알린다. 이름·메일·하는 일은 보내지 않는다.
 
-VERSION = "0.1.0"
+VERSION = "0.1.1"
 INSTALL = DATA / "install.json"
 LOGS = DATA / "logs"
 FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSfZVjXTg2wbH3S6rlvuVXuiFjMQd8nT62xwOkCa13t3qQ_JaQ/formResponse"
