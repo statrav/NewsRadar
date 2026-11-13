@@ -848,6 +848,10 @@ def run_daily() -> int:
     """성공 0, 실패 1, Claude 연결이 풀림 3. 오늘 보관분(archive/<오늘>.json)이 생겼는지로 판단한다."""
     today = now_kst().strftime("%Y-%m-%d")
     log(f"시작 (NewsRadar {VERSION}, 데이터 {DATA})")
+    if (ARCHIVE / f"{today}.json").exists() and not os.environ.get("NEWSRADAR_FORCE"):
+        # 설치하는 날처럼 같은 날 두 번 돌면, 새 글이 적어 오늘 정리를 작게 덮어쓰거나 '실패' 알림이 간다 → 하루 한 번만
+        log("오늘 정리가 이미 있어 다시 만들지 않음 (다시 만들려면 NEWSRADAR_FORCE=1)")
+        return 0
     try:
         collect(2, False)
     except SystemExit as e:
