@@ -819,10 +819,25 @@ AUTH_NOTE = DATA / "claude-auth.json"  # 마지막으로 확인한 로그인 상
 LOGIN_WARN_DAYS = 5
 
 
+def schedule(at: str) -> bool:
+    """매일 at(HH:MM)에 정리하도록 OS 예약을 건다. 시험할 때는 NEWSRADAR_NO_SCHEDULE=1로 끈다."""
+    import subprocess
+    if os.environ.get("NEWSRADAR_NO_SCHEDULE"):
+        return False
+    if sys.platform == "win32":
+        p = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
+                            str(APP / "tools" / "install-task.ps1"), "-At", at], capture_output=True, timeout=120)
+        return p.returncode == 0
+    return False  # Mac(launchd)은 M7
+
+
 def login_warning() -> int | None:
-    """로그인이 며칠 뒤 끝나는지 (5일 안쪽일 때만)."""
+    """로그인이 며칠 뒤 끝나는지 (5일 안쪽일 때만, 이미 풀렸으면 0)."""
     try:
-        exp = json.loads(AUTH_NOTE.read_text(encoding="utf-8")).get("expires")
+        note = json.loads(AUTH_NOTE.read_text(encoding="utf-8"))
+        if not note.get("loggedIn"):
+            return 0
+        exp = note.get("expires")
         days = (datetime.fromisoformat(exp.replace("Z", "+00:00")) - datetime.now(timezone.utc)).days
         return max(days, 0) if days < LOGIN_WARN_DAYS else None
     except Exception:
@@ -844,6 +859,8 @@ def run_daily() -> int:
                                      "checked": today}, ensure_ascii=False), encoding="utf-8")
     if not auth.get("loggedIn"):
         log("Claude 연결이 풀림 (설정 화면에서 다시 연결해야 함)" if not auth.get("missing") else "Claude Code가 설치되어 있지 않음")
+        if SITE.exists():
+            write_site(load_profile())  # 페이지 맨 위에 '다시 연결해 주세요'가 보이게
         return 3  # 실행 스크립트가 '다시 연결해 주세요' 알림을 보낸다
     profile = load_profile()
     names = ("daily", "weekly") if profile.get("weekly", True) else ("daily",)

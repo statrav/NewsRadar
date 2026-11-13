@@ -137,6 +137,9 @@ def do_start(minutes: str) -> None:
         info.update(minutes=minutes, version=radar.VERSION, updated=now_date())
         radar.save_install(info)
 
+        profile = radar.load_profile()
+        set_job(message="매일 정리하도록 예약하고 있어요")
+        radar.schedule(str(profile.get("time") or "09:30"))
         set_job(message="지금 있는 글을 '이미 본 글'로 기록하고 있어요")
         try:
             radar.collect(2, True)
