@@ -79,6 +79,10 @@ h2{font-family:var(--head);font-size:16px;font-weight:700;margin:0 0 12px}
 .day{background:var(--panel);border-radius:16px;padding:14px 18px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:6px}
 .day button{align-self:flex-start;border:0;background:none;padding:0;font-family:var(--head);font-weight:700;font-size:15px;color:var(--accent);cursor:pointer}
 .day ul{margin:0;padding-left:18px;color:var(--fg);font-size:14px}
+.bars{background:var(--panel);border-radius:20px;padding:16px 18px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:8px}
+.bar{display:grid;grid-template-columns:6.5rem minmax(0,1fr) 2.2rem;gap:8px;align-items:center;font-size:13px}
+.bar i{display:block;height:8px;border-radius:4px;background:var(--cc)}
+.bar .n{text-align:right;color:var(--muted)}
 .empty{background:var(--panel);border-radius:20px;padding:22px;color:var(--muted);box-shadow:var(--shadow)}
 .foot{font-size:12px;color:var(--muted)}
 </style>
@@ -103,7 +107,7 @@ h2{font-family:var(--head);font-size:16px;font-weight:700;margin:0 0 12px}
   <nav class="nav" aria-label="보기">
     <div class="seg">
       <button id="v-day" type="button" aria-pressed="true">오늘</button>
-      <button id="v-week" type="button" aria-pressed="false">이번 주</button>
+      <button id="v-week" type="button" aria-pressed="false">최근 7일</button>
     </div>
     <label for="past" class="meta">지난 날짜</label>
     <select id="past"></select>
@@ -115,11 +119,11 @@ h2{font-family:var(--head);font-size:16px;font-weight:700;margin:0 0 12px}
   </div>
 
   <div id="week-view" class="main" hidden>
-    <section>
-      <h2>이번 주 요약</h2>
-      <div id="week-sum"></div>
-    </section>
-    <aside class="rail"><h2>요일별 흐름</h2><div class="days" id="days"></div></aside>
+    <section id="week-sum"></section>
+    <aside class="rail">
+      <h2>분류별 소식 수</h2><div class="bars" id="cat-bars"></div>
+      <h2>날짜별 흐름</h2><div class="days" id="days"></div>
+    </aside>
   </div>
 
   <p class="foot" id="foot"></p>
@@ -175,12 +179,24 @@ function drawDay(page, isToday) {
   const failed = page.errors ? ` · 소식을 받지 못한 곳 ${page.errors}곳` : '';
   document.getElementById('foot').textContent = `모은 시각 ${page.collected.replace('T', ' ').slice(0, 16)} · 제목을 누르면 원문으로 갑니다 · 'N곳'은 여러 출처에서 다룬 소식${failed}`;
 }
+// 최근 7일 분류별 소식 수: 매일 정리(흐름 + 그 밖의 소식)를 세기만 한다 (Claude 안 씀)
+function drawCatBars(days) {
+  const cats = days[0].cats, count = {};
+  days.forEach((p) => [...p.themes.flatMap((t) => t.items), ...p.others].forEach((x) => { count[x.cat] = (count[x.cat] || 0) + 1; }));
+  const rows = Object.entries(count).sort((a, b) => b[1] - a[1]);
+  const max = rows.length ? rows[0][1] : 1;
+  document.getElementById('cat-bars').replaceChildren(...rows.map(([c, n]) => {
+    const r = el('div', 'bar'); r.style.setProperty('--cc', `var(${catColor(cats, c)})`);
+    const bar = el('i'); bar.style.width = `${Math.max(4, Math.round((n / max) * 100))}%`;
+    r.append(el('span', null, c), bar, el('span', 'n', String(n))); return r;
+  }));
+}
 function drawWeek() {
   const box = document.getElementById('week-sum');
   const w = DATA.weekly;
   if (w) {
     const head = el('div', 'week-head');
-    head.append(el('p', 'meta', `${longDate(w.start)} ~ ${longDate(w.end)}`), el('p', 'big', w.headline));
+    head.append(el('p', 'meta', '최근 7일 한 문장'), el('p', 'big', w.headline));
     const cards = el('div', 'themes');
     w.points.forEach((p) => {
       const card = el('article', 'card');
@@ -188,12 +204,14 @@ function drawWeek() {
       const ul = el('ul', 'list'); p.items.forEach((x) => ul.append(row(x)));
       card.append(el('h3', null, p.name), el('p', 'line', p.line), use, ul); cards.append(card);
     });
-    const wrap = el('div', 'rail'); wrap.append(head, cards); box.replaceChildren(wrap);
+    const wrap = el('div', 'rail'); wrap.append(head, el('h2', null, '여러 날 이어진 흐름'), cards); box.replaceChildren(wrap);
   } else {
-    box.replaceChildren(el('p', 'empty', '이번 주 요약은 금요일 아침에 만들어집니다. 그전까지는 오른쪽의 요일별 흐름을 보세요.'));
+    box.replaceChildren(el('p', 'empty', '최근 7일 요약은 매일 정리할 때 함께 만들어집니다. 아직 없거나 설정에서 꺼 두었다면, 오른쪽의 날짜별 흐름을 보세요.'));
   }
+  const recent = DATA.history.slice(0, 7);
+  drawCatBars(recent);
   const days = document.getElementById('days');
-  days.replaceChildren(...DATA.history.slice(0, 7).map((p) => {
+  days.replaceChildren(...recent.map((p) => {
     const d = el('div', 'day');
     const b = el('button', null, `${md(p.date)} (${dayName(p.date)})`); b.type = 'button';
     b.addEventListener('click', () => show('day', p.date));
@@ -214,7 +232,11 @@ function show(view, date) {
   vWeek.setAttribute('aria-pressed', String(view === 'week'));
   past.value = view === 'day' && !isToday ? page.date : '';
   if (view === 'day') drawDay(page, isToday);
-  else { drawWeek(); document.getElementById('date').textContent = `${longDate(today.date)} 기준 · 최근 ${Math.min(7, DATA.history.length)}일`; }
+  else {
+    drawWeek();
+    const recent = DATA.history.slice(0, 7), first = recent[recent.length - 1].date;
+    document.getElementById('date').textContent = `${first === today.date ? '' : `${longDate(first)} ~ `}${longDate(today.date)} · 최근 ${recent.length}일`;
+  }
   window.scrollTo({ top: 0 });
 }
 if (DATA && DATA.history.length) {

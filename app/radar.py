@@ -9,7 +9,7 @@ NewsRadar: 출처를 모아 후보를 만들고(collect), Claude가 쓴 정리(d
     uv run radar.py collect --baseline   지금 있는 글을 '본 것'으로만 기록 (처음 한 번)
     uv run radar.py check                <data>/digest.json이 후보와 맞는지 점검
     uv run radar.py render               digest + 후보 → <data>/archive/<날짜>.json, <data>/site/index.html
-    uv run radar.py week                 (금요일) 최근 7일 → <data>/week-input.json, Claude가 <data>/weekly.json 작성
+    uv run radar.py week                 최근 7일 → <data>/week-input.json, Claude가 <data>/weekly.json 작성 (매일)
     uv run radar.py check --week         weekly.json 점검
     uv run radar.py where                데이터 폴더 위치 보기
 
@@ -452,7 +452,7 @@ def write_site(profile: dict) -> None:
     SITE.write_text(TEMPLATE.read_text(encoding="utf-8").replace("/*DATA*/null", text), encoding="utf-8")
 
 
-# ── 이번 주 요약 (금요일) ──
+# ── 최근 7일 요약 (매일, profile.weekly가 true일 때) ──
 
 def week() -> None:
     """최근 7일 보관분을 Claude가 읽을 짧은 목록으로 → week-input.json"""
@@ -483,10 +483,14 @@ def week_problems() -> list[str]:
     if not WEEKLY.exists():
         return ["weekly.json이 없음"]
     w = json.loads(WEEKLY.read_text(encoding="utf-8"))
-    items = json.loads(WEEK_INPUT.read_text(encoding="utf-8"))["items"]
+    inp = json.loads(WEEK_INPUT.read_text(encoding="utf-8"))
+    items = inp["items"]
     errs = [f"{k} 없음" for k in ("start", "end", "headline", "points") if not w.get(k)]
-    if not 3 <= len(w.get("points", [])) <= 5:
-        errs.append(f"요점은 3~5개여야 함 (지금 {len(w.get('points', []))}개)")
+    if (w.get("start"), w.get("end")) != (inp["start"], inp["end"]):
+        errs.append(f"start·end는 week-input 값 그대로여야 함 ({inp['start']} ~ {inp['end']})")
+    lo = 1 if len(inp["days"]) < 3 else 3  # 쌓인 날이 적을 때는 요점 1개부터
+    if not lo <= len(w.get("points", [])) <= 5:
+        errs.append(f"요점은 {lo}~5개여야 함 (지금 {len(w.get('points', []))}개, 쌓인 날 {len(inp['days'])}일)")
     for p in w.get("points", []):
         errs += [f"요점 '{p.get('name', '?')}'에 {k} 없음" for k in ("name", "line", "use", "ids") if not p.get(k)]
         errs += [f"요점 '{p.get('name')}'의 {i}가 week-input에 없음" for i in p.get("ids", []) if i not in items]
@@ -498,7 +502,7 @@ def weekly_page(today: str | None) -> dict | None:
         return None
     w = json.loads(WEEKLY.read_text(encoding="utf-8"))
     if w.get("end", "") < (datetime.fromisoformat(today) - timedelta(days=6)).strftime("%Y-%m-%d"):
-        return None  # 지난주 요약은 '이번 주'에 보여 주지 않는다
+        return None  # 오래된 요약은 보여 주지 않는다
     items = json.loads(WEEK_INPUT.read_text(encoding="utf-8"))["items"]
     pts = [{"name": p["name"], "line": p["line"], "use": p["use"], "items": [items[i] for i in p["ids"] if i in items]} for p in w["points"]]
     return {"start": w["start"], "end": w["end"], "headline": w["headline"], "points": pts}
@@ -513,7 +517,7 @@ def main() -> None:
     c.add_argument("--days", type=int, default=2, help="며칠 전 글까지 볼지 (기본 2)")
     c.add_argument("--baseline", action="store_true")
     ck = sub.add_parser("check")
-    ck.add_argument("--week", action="store_true", help="이번 주 요약(weekly.json) 점검")
+    ck.add_argument("--week", action="store_true", help="최근 7일 요약(weekly.json) 점검")
     sub.add_parser("render")
     sub.add_parser("week")
     sub.add_parser("where")

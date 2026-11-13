@@ -10,5 +10,5 @@ keywords: '\b(AI|LLM|LLMs|GPT|Claude|Gemini|Llama|Qwen|agent|agents|agentic|RAG|
 exclude: '\b(stocks?|shares|price target|investors?|earnings|dividend|NASDAQ|NYSE|buy rating|arrest\w*|charged|lawsuit|sues)\b|주가|목표가|증시|상장|매수|소송|체포'
 search: "AI agent"                                      # 정리 페이지 위 '직접 찾아보기' 기본 검색어
 time: "09:30"
-weekly: true                                            # 금요일에 이번 주 요약
+weekly: true                                            # 매일 최근 7일 요약도 씀 (false면 날짜별 흐름·분류별 수만)
 model: claude-sonnet-5-5
