@@ -37,7 +37,12 @@ button,select,input{font:inherit;color:var(--fg)}
 h1{font-family:var(--head);font-weight:800;font-size:34px;line-height:1.15;margin:0;letter-spacing:-.01em}
 .date{margin:6px 0 0;color:var(--muted);font-size:14px}
 .tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.tools input{font-size:14px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);width:14rem;max-width:100%}
+/* 직접 찾아보기: 입력칸과 버튼을 한 덩어리로, 버튼 이름에 하는 일 (시안 2, 2026-11-13) */
+.search{display:flex;flex-wrap:wrap;align-items:stretch;border:1px solid var(--line);border-radius:12px;background:var(--panel);overflow:hidden;max-width:100%}
+.search input{font-size:14px;padding:8px 12px;border:0;background:transparent;width:13rem;min-width:8rem;flex:1 1 8rem}
+.search input:focus-visible{outline-offset:-2px}
+.search a{display:flex;align-items:center;font-size:13px;font-weight:700;padding:8px 12px;border-left:1px solid var(--line);background:var(--sub);color:var(--accent-ink);text-decoration:none;white-space:nowrap}
+.search a:hover{background:var(--accent-bg)}
 .btn{font-size:13px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);text-decoration:none;cursor:pointer;white-space:nowrap}
 .btn:hover{border-color:var(--muted)}
 
@@ -97,10 +102,12 @@ h2{font-family:var(--head);font-size:16px;font-weight:700;margin:0 0 12px}
       <p class="date" id="date">아직 정리된 소식이 없습니다</p>
     </div>
     <div class="tools">
-      <label for="q" class="meta">직접 찾아보기</label>
-      <input id="q" type="search" placeholder="찾고 싶은 말">
-      <a class="btn" id="g-week" target="_blank" rel="noopener noreferrer" href="https://www.google.com/search?tbs=qdr:w">구글 지난 1주</a>
-      <a class="btn" id="g-news" target="_blank" rel="noopener noreferrer" href="https://news.google.com/?hl=ko&amp;gl=KR&amp;ceid=KR:ko">구글 뉴스</a>
+      <div class="search" role="search">
+        <label for="q" class="meta" style="position:absolute;left:-9999px">구글에서 찾아볼 말</label>
+        <input id="q" type="search" placeholder="찾아볼 말" title="쓰고 Enter를 누르면 구글 뉴스에서 찾습니다">
+        <a id="g-news" target="_blank" rel="noopener noreferrer" href="https://news.google.com/?hl=ko&amp;gl=KR&amp;ceid=KR:ko">구글 뉴스에서 찾기</a>
+        <a id="g-week" target="_blank" rel="noopener noreferrer" href="https://www.google.com/search?tbs=qdr:w">지난 1주 웹에서 찾기</a>
+      </div>
       <button class="btn" id="theme-btn" type="button">어두운 화면</button>
     </div>
   </header>
@@ -260,6 +267,8 @@ const searchLinks = () => {
   document.getElementById('g-news').href = term ? `https://news.google.com/search?q=${v}&hl=ko&gl=KR&ceid=KR:ko` : 'https://news.google.com/?hl=ko&gl=KR&ceid=KR:ko';
 };
 q.addEventListener('input', searchLinks);
+// Enter = 구글 뉴스에서 찾기 (첫 번째 버튼)
+q.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); searchLinks(); document.getElementById('g-news').click(); } });
 searchLinks();
 </script>
 </body>
