@@ -12,6 +12,7 @@ NewsRadar: 출처를 모아 후보를 만들고(collect), Claude가 쓴 정리(d
     uv run radar.py week                 최근 7일 → <data>/week-input.json, Claude가 <data>/weekly.json 작성 (매일)
     uv run radar.py check --week         weekly.json 점검
     uv run radar.py where                데이터 폴더 위치 보기
+    uv run radar.py test-source [--save] Claude의 출처 제안(<data>/recommend.json)을 하나씩 시험 → recommend-result.json
 
 사용자 데이터 폴더(<data>)는 코드와 떨어져 있다. 환경변수 NEWSRADAR_DATA가 있으면 그곳,
 없으면 Windows는 %LOCALAPPDATA%\\NewsRadar\\data, Mac은 ~/Library/Application Support/NewsRadar/data.
@@ -25,7 +26,7 @@ import os
 import re
 import sys
 import time
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import quote_plus, urljoin
@@ -508,6 +509,147 @@ def weekly_page(today: str | None) -> dict | None:
     return {"start": w["start"], "end": w["end"], "headline": w["headline"], "points": pts}
 
 
+# ── 출처 시험 (설정 때: Claude 제안 → 하나씩 실제로 받아 보기 → 통과한 것만) ──
+
+PROPOSAL = DATA / "recommend.json"        # Claude가 쓴 제안
+TEST_RESULT = DATA / "recommend-result.json"
+FEED_PATHS = ("/feed", "/rss", "/rss.xml", "/atom.xml", "/feed.xml", "/index.xml", "/feed/")
+TEST_TIMEOUT = 15
+SITE_RECENT_DAYS = 30
+NEWS_TEST_DAYS = 7
+
+
+def entry_time(e) -> datetime | None:
+    t = e.get("published_parsed") or e.get("updated_parsed")
+    return datetime(*t[:6], tzinfo=timezone.utc) if t else None
+
+
+def as_feed(body: bytes):
+    parsed = feedparser.parse(body)
+    return parsed if parsed.entries and (parsed.get("version") or parsed.feed.get("title")) else None
+
+
+def alt_feed_links(body: bytes, base: str) -> list[str]:
+    """페이지의 <link rel="alternate" type="application/rss+xml" href="..."> 주소들"""
+    out = []
+    for tag in re.findall(r"<link\b[^>]*>", body.decode("utf-8", "replace"), re.I):
+        if re.search(r'type=["\']application/(rss|atom)\+xml["\']', tag, re.I):
+            m = re.search(r'href=["\']([^"\']+)["\']', tag, re.I)
+            if m:
+                out.append(urljoin(base, html.unescape(m.group(1))))
+    return out
+
+
+def judge_feed(parsed, now: datetime) -> tuple[bool, int, str]:
+    """(통과, 최근 30일 글 수, 이유)"""
+    times = [entry_time(e) for e in parsed.entries]
+    recent = sum(1 for t in times if t and t >= now - timedelta(days=SITE_RECENT_DAYS))
+    if recent:
+        return True, recent, ""
+    if not any(times):
+        return True, len(parsed.entries), "글에 날짜가 없음 (처음 며칠은 옛 글이 섞일 수 있음)"
+    return False, 0, f"최근 {SITE_RECENT_DAYS}일 동안 새 글이 없음"
+
+
+def test_site(site: dict) -> dict:
+    """주소가 RSS인지 → 페이지가 알려 주는 RSS → 흔한 RSS 주소 순서로 찾는다."""
+    now = datetime.now(timezone.utc)
+    url = site["url"]
+    try:
+        body = fetch(url, timeout=TEST_TIMEOUT)
+    except Exception as e:
+        return {"ok": False, "reason": f"사이트가 열리지 않음 ({type(e).__name__}: {e})"[:160]}
+    tries = [(url, body)]
+    seen = {url}
+    for u in alt_feed_links(body, url) + [urljoin(url, p) for p in FEED_PATHS]:
+        if u not in seen:
+            seen.add(u)
+            tries.append((u, None))
+    last = "RSS를 찾지 못함"
+    for u, b in tries:
+        try:
+            parsed = as_feed(b if b is not None else fetch(u, timeout=TEST_TIMEOUT))
+        except Exception:
+            continue
+        if not parsed:
+            continue
+        ok, recent, note = judge_feed(parsed, now)
+        if ok:
+            return {"ok": True, "feed": u, "recent": recent, "note": note}
+        last = note
+    return {"ok": False, "reason": last}
+
+
+def test_news(src: dict) -> dict:
+    try:
+        parsed = feedparser.parse(fetch(news_url(src["q"], src.get("lang"), f"{NEWS_TEST_DAYS}d"), timeout=TEST_TIMEOUT))
+    except Exception as e:
+        return {"ok": False, "reason": f"검색이 되지 않음 ({type(e).__name__})"}
+    try:
+        must = news_must(src)
+    except re.error as e:
+        return {"ok": False, "reason": f"제목 확인 단어(must)가 잘못됨: {e}"}
+    hits = [e for e in parsed.entries if must.search(e.get("title", ""))]
+    if not hits:
+        why = "검색 결과가 없음" if not parsed.entries else f"검색 결과 {len(parsed.entries)}건 중 제목에 맞는 단어가 있는 기사가 없음"
+        return {"ok": False, "reason": f"지난 {NEWS_TEST_DAYS}일 {why}"}
+    return {"ok": True, "week": len(hits), "sample": clean(hits[0].get("title", ""))[:80]}
+
+
+def test_sources(proposal_path: Path, save: bool) -> None:
+    prop = json.loads(proposal_path.read_text(encoding="utf-8"))
+    catalog = load_catalog()
+    passed = {"catalog": [], "feeds": [], "news": []}
+    failed = []
+    for cid in prop.get("catalog") or []:
+        if cid in catalog:
+            passed["catalog"].append(cid)  # catalog는 이미 시험을 통과한 목록
+        else:
+            failed.append({"kind": "catalog", "name": cid, "reason": "목록(catalog)에 없는 id"})
+
+    jobs = [("news", s) for s in prop.get("news") or []] + [("site", s) for s in prop.get("sites") or []]
+    total = len(jobs)
+    print(f"시험할 출처 {total}곳 (목록에서 고른 {len(passed['catalog'])}곳은 시험을 건너뜀)", flush=True)
+    with ThreadPoolExecutor(8) as pool:
+        futs = {pool.submit(test_news if k == "news" else test_site, s): (k, s) for k, s in jobs}
+        done = 0
+        for f in as_completed(futs):
+            k, s = futs[f]
+            r = f.result()
+            done += 1
+            label = f"뉴스 검색 \"{s['q']}\"" if k == "news" else s["name"]
+            print(f"  [{done}/{total}] {'통과' if r['ok'] else '안 됨'} {label}" + ("" if r["ok"] else f" — {r['reason']}"), flush=True)
+            if not r["ok"]:
+                failed.append({"kind": k, "name": label, "url": s.get("url") or s.get("q"), "reason": r["reason"]})
+            elif k == "news":
+                keep = {x: s[x] for x in ("q", "lang", "must", "org", "tier", "max") if s.get(x)}
+                passed["news"].append(dict(keep, tier=s.get("tier", 2), week=r["week"], sample=r["sample"]))
+            else:
+                passed["feeds"].append({"name": s["name"], "url": r["feed"], "org": s.get("org", ""), "tier": s.get("tier", 2),
+                                        "filter": bool(s.get("filter")), "why": s.get("why", ""), "recent": r["recent"], "note": r["note"]})
+    n_pass = len(passed["catalog"]) + len(passed["feeds"]) + len(passed["news"])
+    profile_patch = {k: prop[k] for k in ("categories", "keywords", "exclude", "search") if prop.get(k)}
+    result = {"tested_at": now_kst().isoformat(timespec="minutes"), "passed": passed, "failed": failed,
+              "profile": profile_patch, "summary": {"passed": n_pass, "failed": len(failed)}}
+    TEST_RESULT.write_text(json.dumps(result, ensure_ascii=False, indent=1), encoding="utf-8")
+    print(f"통과 {n_pass}곳, 안 됨 {len(failed)}곳 → {TEST_RESULT}")
+    if save:
+        save_sources(result)
+
+
+def save_sources(result: dict) -> None:
+    """시험 결과 중 통과한 것만 sources.yaml로, 분류·거르는 단어는 profile.yaml에 합친다."""
+    p = result["passed"]
+    clean_feed = lambda s: {k: v for k, v in s.items() if k in ("name", "url", "org", "tier", "filter", "max") and v not in ("", None, False)}
+    clean_news = lambda s: {k: v for k, v in s.items() if k in ("q", "lang", "must", "org", "tier", "max") and v not in ("", None)}
+    sources = {"catalog": p["catalog"], "feeds": [clean_feed(s) for s in p["feeds"]], "pages": [], "news": [clean_news(s) for s in p["news"]]}
+    SOURCES.write_text("# NewsRadar 출처 (설정 때 시험을 통과한 것만)\n" + yaml.safe_dump(sources, allow_unicode=True, sort_keys=False, width=200), encoding="utf-8")
+    profile = read_yaml(PROFILE) if PROFILE.exists() else {}
+    profile.update(result.get("profile") or {})
+    PROFILE.write_text(yaml.safe_dump(profile, allow_unicode=True, sort_keys=False, width=200), encoding="utf-8")
+    print(f"저장: {SOURCES}, {PROFILE}")
+
+
 def main() -> None:
     sys.stdout.reconfigure(encoding="utf-8")
     sys.stderr.reconfigure(encoding="utf-8")  # 실패 메시지(sys.exit)도 한글이 깨지지 않게
@@ -521,12 +663,17 @@ def main() -> None:
     sub.add_parser("render")
     sub.add_parser("week")
     sub.add_parser("where")
+    ts = sub.add_parser("test-source", help="Claude의 출처 제안(recommend.json)을 하나씩 시험")
+    ts.add_argument("proposal", nargs="?", help=f"제안 파일 (기본 {PROPOSAL.name})")
+    ts.add_argument("--save", action="store_true", help="통과한 것을 sources.yaml·profile.yaml에 저장")
     a = p.parse_args()
     t0 = time.time()
     if a.cmd == "where":
         print(DATA)
         return
-    if a.cmd == "collect":
+    if a.cmd == "test-source":
+        test_sources(Path(a.proposal) if a.proposal else PROPOSAL, a.save)
+    elif a.cmd == "collect":
         collect(a.days, a.baseline)
     elif a.cmd == "check":
         errs = week_problems() if a.week else problems(*load_digest(), load_profile()["categories"])
