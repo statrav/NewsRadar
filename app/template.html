@@ -26,6 +26,7 @@
   --accent:#5b9dff; --accent-bg:#1b2a40; --accent-ink:#7fb0ff; --shadow:none;
   --c1:#7fa9f5; --c2:#4fcaa6; --c3:#f0965c; --c4:#c08cf0; --c5:#9fb0c2; --c6:#f07c8a; --c7:#d9c25a; --c8:#6cc6de; color-scheme:dark}
 *,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none !important} /* .main{display:grid}가 hidden을 덮어써 두 화면이 같이 보이던 문제 */
 body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.6;word-break:keep-all}
 .wrap{max-width:90rem;margin:0 auto;padding-block:calc(24px + env(safe-area-inset-top,0px)) calc(64px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:22px}
 a{color:inherit}
@@ -228,6 +229,7 @@ function show(view, date) {
   const isToday = page.date === today.date;
   document.getElementById('day-view').hidden = view !== 'day';
   document.getElementById('week-view').hidden = view !== 'week';
+  try { history.replaceState(null, '', view === 'week' ? '#week' : location.pathname + location.search); } catch (e) {} // 새로 고쳐도 같은 탭
   vDay.setAttribute('aria-pressed', String(view === 'day' && isToday));
   vWeek.setAttribute('aria-pressed', String(view === 'week'));
   past.value = view === 'day' && !isToday ? page.date : '';
