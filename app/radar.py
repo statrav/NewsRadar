@@ -93,15 +93,27 @@ def norm_url(url: str) -> str:
     return url.rstrip("/")
 
 
+TITLE_STOP = {"the", "a", "an", "of", "to", "in", "on", "for", "and", "with", "as", "by", "at", "is", "are", "its", "it",
+              "from", "how", "what", "new", "your", "you", "into", "over", "after", "says", "say", "about", "now", "more"}
+SIMILAR = 0.45  # M2 시험(4분야 후보)에서 이 값 이상은 모두 같은 소식, 바로 아래부터 다른 기사가 섞였다
+
+
 def title_key(title: str) -> set[str]:
-    words = re.findall(r"[0-9a-z]+|[가-힣]+", title.lower())
-    return {w for w in words if len(w) > 1}
+    """제목 비교용 조각: 한글은 두 글자씩(띄어쓰기·조사가 달라도 맞게), 영어·숫자는 낱말.
+    '[게시판]' 같은 머리표와 ' - 언론사' 꼬리는 뺀다."""
+    t = re.sub(r"\[[^\]]{1,12}\]", " ", title.lower())
+    t = re.sub(r"\s+-\s+[^-]{1,20}$", "", t)
+    key = set()
+    for run in re.findall(r"[가-힣]+", t):
+        key |= {run[i:i + 2] for i in range(len(run) - 1)}
+    key |= {w for w in re.findall(r"[0-9a-z]+", t) if len(w) > 1 and w not in TITLE_STOP}
+    return key
 
 
 def similar(a: set[str], b: set[str]) -> bool:
     if not a or not b:
         return False
-    return len(a & b) / len(a | b) >= 0.6
+    return 2 * len(a & b) / (len(a) + len(b)) >= SIMILAR
 
 
 # ── 설정 읽기 ──

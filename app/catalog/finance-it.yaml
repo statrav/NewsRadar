@@ -1,0 +1,20 @@
+# 분야: 금융 IT — 실제로 받아지는 것을 확인한 출처 (2026-11-13 test-source 통과)
+# 형식은 ai.yaml 머리말 참고. 금융위원회·금융감독원·한국은행 보도자료는 RSS를 못 찾아 아직 뉴스 검색으로만 따라감
+
+feeds:
+  - {id: toss-tech, name: 토스 기술 블로그, url: "https://toss.tech/rss.xml", org: 토스, tier: 2, tags: [회사 블로그, 핀테크, 국내], desc: "핀테크의 시스템 구축·운영 사례"}
+  - {id: banksalad-blog, name: 뱅크샐러드 블로그, url: "https://blog.banksalad.com/rss.xml", org: 뱅크샐러드, tier: 3, tags: [회사 블로그, 마이데이터, 국내], desc: "마이데이터 서비스 개발 사례"}
+  - {id: finextra, name: Finextra, url: "https://www.finextra.com/rss/headlines.aspx", tier: 2, max: 8, tags: [언론, 해외], desc: "해외 금융 IT 업계 소식"}
+
+pages: []
+
+news:
+  - {id: news-fin-fsc, q: "금융위원회", must: "금융위", org: 금융위원회, lang: ko, tier: 1, tags: [규제, 국내], desc: "금융위원회 기사 (보도자료는 RSS가 없음)"}
+  - {id: news-fin-fss, q: "금융감독원", must: "금감원|금융감독원", org: 금융감독원, lang: ko, tier: 1, tags: [규제, 국내], desc: "금융감독원 기사"}
+  - {id: news-fin-nextgen, q: "은행 차세대 시스템", must: "차세대", lang: ko, tier: 2, tags: [사업, 국내], desc: "금융권 차세대 시스템 사업 기사 (드묾)"}
+  - {id: news-fin-network-separation, q: "금융 망분리 규제", must: "망분리", lang: ko, tier: 2, tags: [규제, 보안, 국내], desc: "망분리 규제 변화"}
+  - {id: news-fin-mydata, q: "마이데이터 금융", must: "마이데이터", lang: ko, tier: 2, tags: [국내], desc: "마이데이터 기사 (드묾)"}
+  - {id: news-fin-cloud, q: "금융 클라우드 전환", must: "클라우드", lang: ko, tier: 2, tags: [인프라, 국내], desc: "금융권 클라우드 전환"}
+  - {id: news-fin-genai, q: "금융권 생성형 AI", must: "AI|인공지능", lang: ko, tier: 2, tags: [AI, 국내], desc: "금융권 AI 도입"}
+  - {id: news-fin-sto, q: "토큰증권 STO", must: "토큰증권|STO", lang: ko, tier: 3, tags: [디지털 자산, 국내], desc: "토큰증권 제도·사업"}
+  - {id: news-fin-corebanking, q: "core banking modernization", must: "core banking|banking", lang: en, tier: 3, tags: [사업, 해외], desc: "해외 코어뱅킹 전환 기사"}

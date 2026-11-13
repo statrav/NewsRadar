@@ -1,0 +1,22 @@
+# 분야: 디지털 마케팅 — 실제로 받아지는 것을 확인한 출처 (2026-11-13 test-source 통과)
+# 형식은 ai.yaml 머리말 참고. Search Engine Land는 자동 접근을 막음(403), 국내 마케팅 전문 사이트는 RSS를 못 찾아 아직 없음
+
+feeds:
+  - {id: socialmediatoday, name: Social Media Today, url: "https://www.socialmediatoday.com/feeds/news/", tier: 1, tags: [언론, SNS, 해외], desc: "SNS 플랫폼 기능·정책 변경"}
+  - {id: marketingweek, name: Marketing Week, url: "https://www.marketingweek.com/feed/", tier: 2, max: 6, tags: [언론, 브랜드, 해외], desc: "브랜드 마케팅 업계 흐름"}
+  - {id: meta-newsroom, name: Meta 뉴스룸, url: "https://about.fb.com/news/feed/", org: Meta, tier: 1, filter: true, tags: [회사 발표, 해외], desc: "페이스북·인스타그램 공식 발표 (분야 글만 거름)"}
+  - {id: hubspot-marketing, name: HubSpot 마케팅 블로그, url: "https://blog.hubspot.com/marketing/rss.xml", org: HubSpot, tier: 3, max: 3, tags: [실무, 해외], desc: "실무 마케팅 방법 (글이 많아 하루 3건)"}
+  - {id: moz-blog, name: Moz 블로그, url: "https://moz.com/posts/rss/blog", org: Moz, tier: 3, tags: [SEO, 해외], desc: "검색 최적화 실무"}
+
+pages: []
+
+news:
+  - {id: news-mkt-performance, q: "퍼포먼스 마케팅", must: "마케팅", lang: ko, tier: 2, tags: [국내], desc: "퍼포먼스 마케팅 기사"}
+  - {id: news-mkt-shortform, q: "숏폼 마케팅", must: "숏폼|릴스|쇼츠", lang: ko, tier: 2, tags: [SNS, 국내], desc: "숏폼 마케팅 기사"}
+  - {id: news-mkt-campaign, q: "브랜드 캠페인 SNS", must: "캠페인|SNS", lang: ko, tier: 2, tags: [국내], desc: "브랜드 캠페인 사례"}
+  - {id: news-mkt-meta-ko, q: "메타 인스타그램 광고", must: "메타|인스타그램|Meta", org: Meta, lang: ko, tier: 1, tags: [플랫폼, 국내], desc: "메타 광고 기사"}
+  - {id: news-mkt-google-ko, q: "구글 유튜브 광고", must: "구글|유튜브", org: Google, lang: ko, tier: 1, tags: [플랫폼, 국내], desc: "구글·유튜브 광고 기사"}
+  - {id: news-mkt-naver, q: "네이버 광고", must: "네이버", org: 네이버, lang: ko, tier: 1, tags: [플랫폼, 국내], desc: "네이버 광고 기사"}
+  - {id: news-mkt-kakao, q: "카카오 광고 비즈니스", must: "카카오", org: 카카오, lang: ko, tier: 1, tags: [플랫폼, 국내], desc: "카카오 광고 기사"}
+  - {id: news-mkt-adtech-en, q: "digital advertising", must: "advertising|ads", lang: en, tier: 2, tags: [해외], desc: "해외 디지털 광고 업계"}
+  - {id: news-mkt-tiktok-en, q: "TikTok ads marketers", must: "TikTok", lang: en, tier: 2, tags: [플랫폼, 해외], desc: "틱톡 광고 기사"}
