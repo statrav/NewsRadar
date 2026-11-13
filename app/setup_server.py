@@ -62,7 +62,16 @@ def current_state() -> dict:
     profile = radar.read_yaml(radar.PROFILE) if radar.PROFILE.exists() else {}
     info = radar.load_install()
     return {"profile": {k: profile.get(k) for k in ("field", "job", "time")}, "minutes": info.get("minutes"),
-            "installed": bool(info.get("id")), "choices": radar.MINUTES_CHOICES, "version": radar.VERSION}
+            "installed": bool(info.get("id")) and radar.SOURCES.exists(), "choices": radar.MINUTES_CHOICES, "version": radar.VERSION}
+
+
+def save_time(at: str) -> bool:
+    """이미 설정한 사람이 받을 시각만 바꿀 때: profile의 time과 예약만 바꾼다 (Claude 안 씀)."""
+    profile = radar.read_yaml(radar.PROFILE)
+    profile["time"] = at
+    radar.PROFILE.write_text(yaml.safe_dump(profile, allow_unicode=True, sort_keys=False, width=200), encoding="utf-8")
+    radar.schedule(at)
+    return True
 
 
 # ── 오래 걸리는 일 (따로 돌린다) ──
@@ -132,9 +141,9 @@ def do_start(minutes: str) -> None:
         radar.save_sources(result)
         info = radar.load_install()
         first = not info.get("id")
-        if first:
-            info = {"id": uuid.uuid4().hex[:12], "installed": now_date()}
-        info.update(minutes=minutes, version=radar.VERSION, updated=now_date())
+        if first:  # 처음 답한 '하루 소식 시간'은 Before라서 나중에 설정을 바꿔도 덮어쓰지 않는다
+            info = {"id": uuid.uuid4().hex[:12], "installed": now_date(), "minutes": minutes}
+        info.update(version=radar.VERSION, updated=now_date())
         radar.save_install(info)
 
         profile = radar.load_profile()
@@ -220,6 +229,12 @@ class Handler(BaseHTTPRequestHandler):
             busy = JOB["stage"] in ("working", "running")
         if busy:
             return self.json({"error": "하던 일이 아직 끝나지 않았어요"}, 409)
+        if self.path == "/api/save-time":
+            at = data.get("time") or ""
+            if not (radar.PROFILE.exists() and len(at) == 5 and at[2] == ":"):
+                return self.json({"error": "받을 시각을 다시 골라 주세요"}, 400)
+            save_time(at)
+            return self.json({"ok": True, "time": at})
         if self.path == "/api/connect":
             threading.Thread(target=do_connect, daemon=True).start()
         elif self.path == "/api/recommend":

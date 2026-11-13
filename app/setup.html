@@ -129,7 +129,7 @@ h1{font-family:var(--head);font-size:26px;font-weight:800;margin:0;line-height:1
   <!-- 다 됐어요 -->
   <section class="card center" id="s-done" hidden>
     <span class="big-ok" aria-hidden="true">✓</span>
-    <h1>다 됐어요</h1>
+    <h1 id="done-title">다 됐어요</h1>
     <p style="margin:0;font-size:17px" id="done-time"></p>
     <p class="sub" style="margin:0" id="done-msg">첫 정리를 지금 만들고 있어요. 1~2분 뒤 자동으로 열려요.</p>
     <div class="progress wait" id="done-bar"><i></i></div>
@@ -216,7 +216,26 @@ chips($('fields'), [...FIELDS, '직접 적기'], (v) => {
 });
 $('field-own').addEventListener('input', () => { state.field = $('field-own').value; readyCheck(); });
 
+// 이미 설정한 사람: 분야·하는 일이 그대로면 받을 시각만 바꾸고 끝 (Claude 안 씀)
+const orig = { installed: false, field: '', job: '' };
+const whenText = (t) => {
+  const [h, m] = (t || '09:30').split(':').map(Number);
+  return `${h < 12 ? '아침' : h < 18 ? '오후' : '저녁'} ${h > 12 ? h - 12 : h}시${m ? ` ${m}분` : ''}`;
+};
+async function saveTimeOnly() {
+  const t = $('time').value || '09:30';
+  await api('/api/save-time', { time: t });
+  $('done-time').replaceChildren('매일 ', Object.assign(document.createElement('b'), { textContent: whenText(t) }), '에 정리해요.');
+  $('done-title').textContent = '저장했어요';
+  $('done-msg').textContent = '창을 닫아도 돼요.';
+  $('done-bar').hidden = true;
+  show('s-done', 4);
+}
+
 $('to-recommend').addEventListener('click', async () => {
+  if (orig.installed && state.field.trim() === orig.field && $('job').value.trim() === orig.job) {
+    try { return await saveTimeOnly(); } catch (e) { /* 안 되면 처음부터 다시 */ }
+  }
   show('s-wait', 2);
   $('wait-err').hidden = true; $('wait-back').hidden = true; $('wait-bar').className = 'progress wait'; $('wait-bar').firstChild.style.width = '';
   $('wait-title').textContent = '볼 만한 곳을 찾고 있어요'; $('wait-msg').textContent = '1분쯤 걸려요';
@@ -251,10 +270,7 @@ function confirmView(r) {
 }
 $('start').addEventListener('click', async () => {
   $('start').disabled = true;
-  const [h, m] = ($('time').value || '09:30').split(':').map(Number);
-  const when = `${h < 12 ? '아침' : h < 18 ? '오후' : '저녁'} ${h > 12 ? h - 12 : h}시${m ? ` ${m}분` : ''}`;
-  $('done-time').innerHTML = '';
-  $('done-time').append('내일부터 매일 ', Object.assign(document.createElement('b'), { textContent: when }), '에 알림이 와요.');
+  $('done-time').replaceChildren('내일부터 매일 ', Object.assign(document.createElement('b'), { textContent: whenText($('time').value) }), '에 알림이 와요.');
   show('s-done', 4);
   try {
     await api('/api/start', { minutes: state.minutes });
@@ -280,6 +296,10 @@ $('start').addEventListener('click', async () => {
     if (p.job) $('job').value = p.job;
     if (p.time) $('time').value = p.time;
     if (s.minutes) [...$('minutes').children].find((c) => c.textContent === s.minutes)?.click();
+    if (s.installed) {
+      Object.assign(orig, { installed: true, field: p.field || '', job: (p.job || '').trim() });
+      $('to-recommend').textContent = '저장';
+    }
     readyCheck();
   } catch (e) { /* 처음 설치면 비어 있어도 된다 */ }
   checkAuth();
