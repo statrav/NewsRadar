@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>NewsRadar 설정</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%233182f6'/%3E%3Ccircle cx='32' cy='32' r='20' fill='none' stroke='%23fff' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='10' fill='none' stroke='%23fff' stroke-width='4'/%3E%3Ccircle cx='46' cy='18' r='5' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@700;800&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+/* 정리 페이지(template.html)와 같은 "깔끔한 앱" 스타일. 시안 B(한 단계씩, 가장 단순하게) 2026-11-13 */
+:root{
+  --bg:#f2f4f6; --panel:#ffffff; --sub:#f4f5f7; --fg:#191f28; --muted:#6b7684; --line:#d9dde2; --line2:#e5e8eb;
+  --accent-bg:#e8f3ff; --ink:#1b64da; --ok:#0f7a55; --ok-bg:#e6f6ef; --bad:#c23a4b; --bad-bg:#fdecee; --shadow:0 1px 2px rgba(0,0,0,.04);
+  --head:"Gothic A1","Noto Sans KR",sans-serif; --body:"Noto Sans KR",system-ui,-apple-system,"Malgun Gothic",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#101318; --panel:#191d24; --sub:#20252d; --fg:#eceef1; --muted:#9aa4b1; --line:#3a414b; --line2:#2b313a;
+  --accent-bg:#1b2a40; --ink:#7fb0ff; --ok:#4fcaa6; --ok-bg:#16302a; --bad:#f07c8a; --bad-bg:#3a1d22; --shadow:none; color-scheme:dark}}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none !important}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.6;word-break:keep-all}
+.wrap{max-width:600px;margin:0 auto;padding:40px 16px 64px;display:flex;flex-direction:column;gap:22px}
+button,input{font:inherit;color:var(--fg)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.bar{display:flex;align-items:center;gap:10px}
+.dot{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;font-size:14px;font-weight:800;background:var(--line2);color:var(--muted);flex:none}
+.dot.done{background:var(--ok-bg);color:var(--ok)}
+.dot.now{background:var(--ink);color:#fff}
+.bar .t{font-size:14px;color:var(--muted);white-space:nowrap}
+.bar .t.now{color:var(--fg);font-weight:700}
+.bar .line{flex:1;height:2px;background:var(--line2);min-width:16px}
+.card{background:var(--panel);border-radius:24px;padding:32px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:24px}
+h1{font-family:var(--head);font-size:26px;font-weight:800;margin:0;line-height:1.3}
+.sub{margin:6px 0 0;font-size:14px;color:var(--muted)}
+.field{display:flex;flex-direction:column;gap:8px}
+.lab{font-size:15px;font-weight:700;margin:0}
+.opt{font-weight:400;color:var(--muted)}
+.hint{margin:0;font-size:13px;color:var(--muted)}
+.inp{font-size:16px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--panel);width:100%;min-height:48px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font-size:14px;padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);min-height:38px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent-bg);border-color:transparent;color:var(--ink);font-weight:700}
+.primary{font-size:17px;font-weight:700;padding:14px 22px;border:0;border-radius:12px;background:var(--ink);color:#fff;min-height:52px;width:100%;cursor:pointer}
+.primary:disabled{opacity:.4;cursor:default}
+.ghost{font-size:15px;padding:11px 18px;border:1px solid var(--line);border-radius:12px;background:var(--panel);min-height:46px;cursor:pointer}
+.center{align-items:center;text-align:center}
+.big-ok{display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:50%;background:var(--ok-bg);color:var(--ok);font-size:28px;font-weight:800}
+.progress{width:100%;height:6px;border-radius:3px;background:var(--line2);overflow:hidden}
+.progress i{display:block;height:100%;width:0;background:var(--ink);transition:width .4s}
+.progress.wait i{width:30%;animation:slide 1.4s ease-in-out infinite}
+@keyframes slide{0%{margin-left:-30%}100%{margin-left:100%}}
+@media (prefers-reduced-motion: reduce){.progress.wait i{animation:none;width:100%;opacity:.4}}
+.list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:20px}
+@media (max-width:520px){.list{grid-template-columns:minmax(0,1fr)}.card{padding:24px 20px}}
+.list li{padding:9px 0;border-top:1px solid var(--line2);font-size:15px;display:flex;flex-direction:column;min-width:0}
+.list li span{font-size:12.5px;color:var(--muted)}
+.cat{display:inline-block;font-size:13.5px;font-weight:700;padding:6px 12px;border-radius:999px;background:var(--accent-bg);color:var(--ink)}
+.err{background:var(--bad-bg);color:var(--bad);border-radius:12px;padding:12px 14px;font-size:14px;margin:0}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="bar" id="bar" aria-label="진행 단계">
+    <span class="dot" id="d1">1</span><span class="t" id="t1">Claude 연결</span><span class="line"></span>
+    <span class="dot" id="d2">2</span><span class="t" id="t2">내 분야</span><span class="line"></span>
+    <span class="dot" id="d3">3</span><span class="t" id="t3">확인</span>
+  </div>
+
+  <!-- ① Claude 연결 -->
+  <section class="card center" id="s-connect">
+    <h1>Claude에 연결하고 있어요</h1>
+    <div class="progress wait" id="connect-bar"><i></i></div>
+    <p class="err" id="connect-err" hidden></p>
+    <button type="button" class="ghost" id="connect-retry" hidden>다시 확인</button>
+  </section>
+
+  <!-- ② 내 분야 -->
+  <section class="card" id="s-field" hidden>
+    <h1>어떤 소식을 받고 싶으세요?</h1>
+    <div class="field">
+      <p class="lab" id="field-lab">분야</p>
+      <div class="chips" id="fields" role="group" aria-labelledby="field-lab"></div>
+      <input id="field-own" class="inp" placeholder="분야를 적어 주세요 (예: 반도체)" aria-label="분야 직접 적기" hidden>
+    </div>
+    <div class="field">
+      <label class="lab" for="job">하는 일 <span class="opt">(선택)</span></label>
+      <input id="job" class="inp" placeholder="예: 금융권 고객사 보안 컨설팅">
+      <p class="hint">적어 주시면 내 일에 맞는 곳을 더 잘 찾아 드려요.</p>
+    </div>
+    <div class="field">
+      <label class="lab" for="time">매일 몇 시에 받을까요?</label>
+      <input id="time" class="inp" type="time" value="09:30" style="width:10rem">
+    </div>
+    <div class="field">
+      <p class="lab" id="min-lab">하루에 트렌드를 파악하거나 소식을 보는 데 몇 분쯤 쓰세요?</p>
+      <div class="chips" id="minutes" role="group" aria-labelledby="min-lab"></div>
+    </div>
+    <button type="button" class="primary" id="to-recommend" disabled>다음</button>
+  </section>
+
+  <!-- 추천받는 중 -->
+  <section class="card center" id="s-wait" hidden>
+    <h1 id="wait-title">볼 만한 곳을 찾고 있어요</h1>
+    <p class="sub" id="wait-msg" style="margin:0">1분쯤 걸려요</p>
+    <div class="progress" id="wait-bar"><i></i></div>
+    <p class="err" id="wait-err" hidden></p>
+    <button type="button" class="ghost" id="wait-back" hidden>앞으로 돌아가기</button>
+  </section>
+
+  <!-- ③ 확인 -->
+  <section class="card" id="s-confirm" hidden>
+    <div>
+      <h1 id="confirm-title"></h1>
+      <p class="sub">하나씩 받아 보고, 소식이 받아지는 곳만 골랐어요.</p>
+    </div>
+    <ul class="list" id="sources"></ul>
+    <div class="field">
+      <p class="lab">소식은 이렇게 나눠서 보여 드려요</p>
+      <div class="chips" id="cats"></div>
+    </div>
+    <div class="field" style="gap:10px">
+      <button type="button" class="primary" id="start">시작하기</button>
+      <p class="hint" style="text-align:center">시작하면 분야와 하루 소식 시간이 만든 사람에게 전달돼요.</p>
+    </div>
+  </section>
+
+  <!-- 다 됐어요 -->
+  <section class="card center" id="s-done" hidden>
+    <span class="big-ok" aria-hidden="true">✓</span>
+    <h1>다 됐어요</h1>
+    <p style="margin:0;font-size:17px" id="done-time"></p>
+    <p class="sub" style="margin:0" id="done-msg">첫 정리를 지금 만들고 있어요. 1~2분 뒤 자동으로 열려요.</p>
+    <div class="progress wait" id="done-bar"><i></i></div>
+    <p class="err" id="done-err" hidden></p>
+  </section>
+</main>
+
+<script>
+const TOKEN = '__TOKEN__';
+const FIELDS = ['AI', '보안', '클라우드', '금융 IT', '마케팅'];
+const $ = (id) => document.getElementById(id);
+const api = async (path, body) => {
+  const r = await fetch(path, body === undefined ? { headers: { 'X-Token': TOKEN } }
+    : { method: 'POST', headers: { 'X-Token': TOKEN, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || '잠시 뒤 다시 해 주세요');
+  return data;
+};
+const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
+async function follow(onTick) {  // 하던 일이 끝날 때까지 0.7초마다 묻는다
+  for (;;) {
+    const j = await api('/api/progress');
+    if (onTick) onTick(j);
+    if (j.stage === 'done' || j.stage === 'error') return j;
+    await wait(700);
+  }
+}
+const state = { field: '', minutes: '' };
+
+function show(id, step) {
+  for (const s of ['s-connect', 's-field', 's-wait', 's-confirm', 's-done']) $(s).hidden = s !== id;
+  $('bar').hidden = id === 's-done';
+  [1, 2, 3].forEach((n) => {
+    $(`d${n}`).className = 'dot' + (n < step ? ' done' : n === step ? ' now' : '');
+    $(`d${n}`).textContent = n < step ? '✓' : String(n);
+    $(`t${n}`).className = 't' + (n === step ? ' now' : '');
+  });
+  window.scrollTo({ top: 0 });
+}
+function chips(box, items, pick) {
+  box.replaceChildren(...items.map((v) => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = v; b.setAttribute('aria-pressed', 'false');
+    b.addEventListener('click', () => { box.querySelectorAll('.chip').forEach((c) => c.setAttribute('aria-pressed', String(c === b))); pick(v); });
+    return b;
+  }));
+}
+const readyCheck = () => { $('to-recommend').disabled = !(state.field.trim() && state.minutes); };
+
+// ① 연결 확인: 열자마자 확인하고, 되면 바로 ②로
+async function connect() {
+  show('s-connect', 1); $('connect-err').hidden = true; $('connect-retry').hidden = true; $('connect-bar').hidden = false;
+  try {
+    await api('/api/connect', {});
+    const j = await follow();
+    if (j.stage === 'error') throw new Error(j.error);
+    show('s-field', 2);
+  } catch (e) {
+    $('connect-bar').hidden = true; $('connect-err').textContent = e.message; $('connect-err').hidden = false; $('connect-retry').hidden = false;
+  }
+}
+$('connect-retry').addEventListener('click', connect);
+
+// ② 분야
+chips($('fields'), [...FIELDS, '직접 적기'], (v) => {
+  const own = v === '직접 적기';
+  $('field-own').hidden = !own;
+  state.field = own ? $('field-own').value : v;
+  if (own) $('field-own').focus();
+  readyCheck();
+});
+$('field-own').addEventListener('input', () => { state.field = $('field-own').value; readyCheck(); });
+
+$('to-recommend').addEventListener('click', async () => {
+  show('s-wait', 2);
+  $('wait-err').hidden = true; $('wait-back').hidden = true; $('wait-bar').className = 'progress wait'; $('wait-bar').firstChild.style.width = '';
+  $('wait-title').textContent = '볼 만한 곳을 찾고 있어요'; $('wait-msg').textContent = '1분쯤 걸려요';
+  try {
+    await api('/api/recommend', { field: state.field.trim(), job: $('job').value, time: $('time').value || '09:30', minutes: state.minutes });
+    const j = await follow((p) => {
+      if (p.total) {
+        $('wait-bar').className = 'progress'; $('wait-bar').firstChild.style.width = `${Math.round((p.done / p.total) * 100)}%`;
+        $('wait-msg').textContent = `찾은 곳에서 소식이 받아지는지 하나씩 확인하고 있어요 (${p.done}/${p.total})`;
+      } else {
+        $('wait-bar').className = 'progress wait'; $('wait-msg').textContent = 'Claude가 내 분야에 맞는 곳을 고르고 있어요';
+      }
+    });
+    if (j.stage === 'error') throw new Error(j.error);
+    confirmView(j.result);
+  } catch (e) {
+    $('wait-bar').className = 'progress'; $('wait-err').textContent = e.message; $('wait-err').hidden = false; $('wait-back').hidden = false;
+  }
+});
+$('wait-back').addEventListener('click', () => show('s-field', 2));
+
+// ③ 확인
+function confirmView(r) {
+  $('confirm-title').textContent = `이 ${r.count}곳에서 소식을 모을게요`;
+  $('sources').replaceChildren(...r.sources.map((s) => {
+    const li = document.createElement('li'); li.textContent = s.name;
+    if (s.desc) { const d = document.createElement('span'); d.textContent = s.desc; li.append(d); }
+    return li;
+  }));
+  $('cats').replaceChildren(...r.categories.map((c) => { const s = document.createElement('span'); s.className = 'cat'; s.textContent = c; return s; }));
+  show('s-confirm', 3);
+}
+$('start').addEventListener('click', async () => {
+  $('start').disabled = true;
+  const [h, m] = ($('time').value || '09:30').split(':').map(Number);
+  const when = `${h < 12 ? '아침' : h < 18 ? '오후' : '저녁'} ${h > 12 ? h - 12 : h}시${m ? ` ${m}분` : ''}`;
+  $('done-time').innerHTML = '';
+  $('done-time').append('내일부터 매일 ', Object.assign(document.createElement('b'), { textContent: when }), '에 알림이 와요.');
+  show('s-done', 4);
+  try {
+    await api('/api/start', { minutes: state.minutes });
+    const j = await follow();
+    $('done-bar').hidden = true;
+    if (j.stage === 'error') throw new Error(j.error);
+    $('done-msg').textContent = '첫 정리를 열었어요. 다시 보려면 바탕화면의 NewsRadar를 누르세요.';
+  } catch (e) {
+    $('done-bar').hidden = true; $('done-err').textContent = e.message; $('done-err').hidden = false;
+  }
+});
+
+// 처음 열 때: 이미 설정한 적이 있으면 그 값을 채워 둔다
+(async () => {
+  try {
+    const s = await api('/api/state');
+    chips($('minutes'), s.choices, (v) => { state.minutes = v; readyCheck(); });
+    const p = s.profile || {};
+    if (p.field) {
+      const b = [...$('fields').children].find((c) => c.textContent === p.field) || [...$('fields').children].at(-1);
+      b.click(); if (!FIELDS.includes(p.field)) { $('field-own').value = p.field; state.field = p.field; }
+    }
+    if (p.job) $('job').value = p.job;
+    if (p.time) $('time').value = p.time;
+    if (s.minutes) [...$('minutes').children].find((c) => c.textContent === s.minutes)?.click();
+    readyCheck();
+  } catch (e) { /* 처음 설치면 비어 있어도 된다 */ }
+  connect();
+})();
+</script>
+</body>
+</html>

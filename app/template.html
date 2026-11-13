@@ -91,6 +91,13 @@ h2{font-family:var(--head);font-size:16px;font-weight:700;margin:0 0 12px}
 .bar .n{text-align:right;color:var(--muted)}
 .empty{background:var(--panel);border-radius:20px;padding:22px;color:var(--muted);box-shadow:var(--shadow)}
 .foot{font-size:12px;color:var(--muted)}
+/* 설치 2주·한 달째 맨 위 질문 (고르면 만든 사람에게 전달되고 사라짐) */
+.survey{background:var(--panel);border-radius:20px;padding:22px 24px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:12px}
+.survey h2{font-size:19px;font-weight:800;margin:0;line-height:1.4}
+.survey .opts{display:flex;flex-wrap:wrap;gap:8px}
+.survey button{font-size:14px;padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);min-height:38px;cursor:pointer}
+.survey button:hover{border-color:var(--muted)}
+.survey p{margin:0;font-size:13px;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -111,6 +118,12 @@ h2{font-family:var(--head);font-size:16px;font-weight:700;margin:0 0 12px}
       <button class="btn" id="theme-btn" type="button">어두운 화면</button>
     </div>
   </header>
+
+  <section class="survey" id="survey" hidden>
+    <h2 id="survey-q"></h2>
+    <div class="opts" id="survey-opts"></div>
+    <p id="survey-note">고르면 만든 사람에게 전달되고 이 안내는 사라져요.</p>
+  </section>
 
   <nav class="nav" aria-label="보기">
     <div class="seg">
@@ -256,6 +269,31 @@ if (DATA && DATA.history.length) {
   past.addEventListener('change', () => { if (past.value) show('day', past.value); });
   show(location.hash === '#week' ? 'week' : 'day');
 }
+
+// ── 설치 2주·한 달째 질문: 고르면 구글 폼으로 보내고, 답한 것을 이 브라우저에 기억 ──
+(() => {
+  const s = DATA && DATA.survey;
+  if (!s || !s.due) return;
+  const key = `newsradar-survey-${s.id}-${s.due}`;
+  if (store.get(key)) return;
+  document.getElementById('survey-q').textContent =
+    `${s.due === '2주' ? '2주' : '한 달'} 써 보셨어요. 요즘은 하루에 트렌드를 파악하거나 소식을 보는 데 몇 분쯤 쓰세요?`;
+  const box = document.getElementById('survey');
+  document.getElementById('survey-opts').replaceChildren(...s.choices.map((c) => {
+    const b = el('button', null, c); b.type = 'button';
+    b.addEventListener('click', () => {
+      const e = s.entries;
+      const body = new URLSearchParams({ [e.id]: s.id, [e.stage]: s.due, [e.field]: s.field, [e.minutes]: c, [e.sources]: String(s.sources),
+        [e.days]: String(s.days), [e.date]: new Date().toISOString().slice(0, 10), [e.version]: s.version });
+      fetch(s.form, { method: 'POST', mode: 'no-cors', body }).catch(() => {});
+      store.set(key, c);
+      box.replaceChildren(el('p', null, '고마워요. 전달했어요.'));
+      setTimeout(() => { box.hidden = true; }, 2500);
+    });
+    return b;
+  }));
+  box.hidden = false;
+})();
 
 // ── 직접 찾아보기: 비워 두면 설정의 기본 검색어 ──
 const q = document.getElementById('q');

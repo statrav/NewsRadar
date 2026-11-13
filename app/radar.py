@@ -13,6 +13,8 @@ NewsRadar: 출처를 모아 후보를 만들고(collect), Claude가 쓴 정리(d
     uv run radar.py check --week         weekly.json 점검
     uv run radar.py where                데이터 폴더 위치 보기
     uv run radar.py test-source [--save] Claude의 출처 제안(<data>/recommend.json)을 하나씩 시험 → recommend-result.json
+    uv run radar.py setup                설정 화면 (127.0.0.1에서만 열림)
+    uv run radar.py run                  매일 실행: 수집 → Claude 정리 → 페이지. 로그는 <data>/logs/
 
 사용자 데이터 폴더(<data>)는 코드와 떨어져 있다. 환경변수 NEWSRADAR_DATA가 있으면 그곳,
 없으면 Windows는 %LOCALAPPDATA%\\NewsRadar\\data, Mac은 ~/Library/Application Support/NewsRadar/data.
@@ -459,6 +461,7 @@ def write_site(profile: dict) -> None:
         "history": history,
         "weekly": weekly_page(history[0]["date"] if history else None),
         "search": profile.get("search") or profile.get("field") or "",
+        "survey": survey_info(),
     }
     text = json.dumps(data, ensure_ascii=False).replace("<", "\\u003c")
     SITE.parent.mkdir(parents=True, exist_ok=True)
@@ -608,7 +611,9 @@ def test_news(src: dict) -> dict:
     return {"ok": True, "week": len(hits), "sample": clean(hits[0].get("title", ""))[:80]}
 
 
-def test_sources(proposal_path: Path, save: bool) -> None:
+def test_sources(proposal_path: Path, save: bool, on_progress=None) -> dict:
+    """제안을 하나씩 시험해 recommend-result.json을 쓰고 결과를 돌려준다.
+    on_progress(done, total, 이름, 통과 여부)가 있으면 하나 끝날 때마다 부른다 (설정 화면 진행 표시)."""
     prop = json.loads(proposal_path.read_text(encoding="utf-8"))
     catalog = load_catalog()
     passed = {"catalog": [], "feeds": [], "news": []}
@@ -622,6 +627,8 @@ def test_sources(proposal_path: Path, save: bool) -> None:
     jobs = [("news", s) for s in prop.get("news") or []] + [("site", s) for s in prop.get("sites") or []]
     total = len(jobs)
     print(f"시험할 출처 {total}곳 (목록에서 고른 {len(passed['catalog'])}곳은 시험을 건너뜀)", flush=True)
+    if on_progress:
+        on_progress(0, total, "", True)
     with ThreadPoolExecutor(8) as pool:
         futs = {pool.submit(test_news if k == "news" else test_site, s): (k, s) for k, s in jobs}
         done = 0
@@ -631,6 +638,8 @@ def test_sources(proposal_path: Path, save: bool) -> None:
             done += 1
             label = f"뉴스 검색 \"{s['q']}\"" if k == "news" else s["name"]
             print(f"  [{done}/{total}] {'통과' if r['ok'] else '안 됨'} {label}" + ("" if r["ok"] else f" — {r['reason']}"), flush=True)
+            if on_progress:
+                on_progress(done, total, label, r["ok"])
             if not r["ok"]:
                 failed.append({"kind": k, "name": label, "url": s.get("url") or s.get("q"), "reason": r["reason"]})
             elif k == "news":
@@ -647,6 +656,7 @@ def test_sources(proposal_path: Path, save: bool) -> None:
     print(f"통과 {n_pass}곳, 안 됨 {len(failed)}곳 → {TEST_RESULT}")
     if save:
         save_sources(result)
+    return result
 
 
 def save_sources(result: dict) -> None:
@@ -660,6 +670,136 @@ def save_sources(result: dict) -> None:
     profile.update(result.get("profile") or {})
     PROFILE.write_text(yaml.safe_dump(profile, allow_unicode=True, sort_keys=False, width=200), encoding="utf-8")
     print(f"저장: {SOURCES}, {PROFILE}")
+
+
+# ── 설치 정보·만든 사람에게 전달 (구글 폼) ──
+# 동료가 [시작하기]를 누를 때, 2주·한 달째 질문에 답할 때만 보낸다. 화면에 미리 알린다. 이름·메일·하는 일은 보내지 않는다.
+
+VERSION = "0.1.0"
+INSTALL = DATA / "install.json"
+LOGS = DATA / "logs"
+FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSfZVjXTg2wbH3S6rlvuVXuiFjMQd8nT62xwOkCa13t3qQ_JaQ/formResponse"
+FORM_FIELDS = {"id": "entry.1998543362", "stage": "entry.2884039", "field": "entry.1116709699", "minutes": "entry.1089926017",
+               "sources": "entry.1087978654", "days": "entry.423011386", "date": "entry.1233052819", "version": "entry.1240549935"}
+MINUTES_CHOICES = ["거의 안 봐요", "10분 안쪽", "10~30분", "30분~1시간", "1시간 넘게"]
+SURVEY_STAGES = (("한달", 30), ("2주", 14))  # (단계, 설치 뒤 며칠째부터)
+
+
+def load_install() -> dict:
+    return json.loads(INSTALL.read_text(encoding="utf-8")) if INSTALL.exists() else {}
+
+
+def save_install(info: dict) -> None:
+    DATA.mkdir(parents=True, exist_ok=True)
+    INSTALL.write_text(json.dumps(info, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
+def submit_form(values: dict) -> bool:
+    """구글 폼에 한 줄 보낸다. 실패해도 설치·정리에는 영향 없음. 시험할 때는 NEWSRADAR_FORM_OFF=1로 끈다."""
+    if os.environ.get("NEWSRADAR_FORM_OFF"):
+        return False
+    from urllib.parse import urlencode
+    body = urlencode({FORM_FIELDS[k]: str(v) for k, v in values.items() if k in FORM_FIELDS}).encode("ascii")  # 한글은 UTF-8로
+    try:
+        req = Request(FORM_URL, data=body, headers={"User-Agent": UA, "Content-Type": "application/x-www-form-urlencoded; charset=utf-8"})
+        with urlopen(req, timeout=10) as r:
+            return r.status == 200
+    except Exception:
+        return False
+
+
+def digest_days(since: str) -> int:
+    return sum(1 for f in ARCHIVE.glob("*.json") if f.stem >= since) if ARCHIVE.exists() else 0
+
+
+def survey_info() -> dict | None:
+    """정리 페이지 맨 위 질문(2주·한 달째)에 필요한 것. 페이지가 답했는지를 기억한다."""
+    info = load_install()
+    if not info.get("id"):
+        return None
+    days = (now_kst().date() - datetime.fromisoformat(info["installed"]).date()).days
+    due = next((stage for stage, d in SURVEY_STAGES if days >= d), None)
+    try:
+        n_sources = sum(len(v) for v in load_sources()[0].values())
+    except SystemExit:
+        n_sources = 0
+    profile = read_yaml(PROFILE) if PROFILE.exists() else {}
+    return {"id": info["id"], "due": due, "field": profile.get("field", ""), "sources": n_sources,
+            "days": digest_days(info["installed"]), "version": VERSION,
+            "form": FORM_URL, "entries": FORM_FIELDS, "choices": MINUTES_CHOICES}
+
+
+# ── Claude 실행 ──
+
+def prompt_text(*names: str) -> str:
+    radar = f'uv run "{APP / "radar.py"}"'
+    text = "\n\n".join((APP / "prompts" / f"{n}.md").read_text(encoding="utf-8") for n in names)
+    return text.replace("{RADAR}", radar).replace("{CATALOG}", str(CATALOG))
+
+
+def run_claude(prompt: str, tools: str, timeout: int = 900) -> tuple[bool, str]:
+    """claude -p를 데이터 폴더에서 실행한다. 도구는 tools로 제한, API 키가 있어도 쓰지 않는다(요금 방지)."""
+    import shutil
+    import subprocess
+    exe = shutil.which("claude")
+    if not exe:
+        return False, "Claude Code가 설치되어 있지 않음"
+    env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
+    env["NEWSRADAR_DATA"] = str(DATA)
+    model = (read_yaml(PROFILE) if PROFILE.exists() else {}).get("model") or "claude-sonnet-5-5"
+    try:
+        p = subprocess.run([exe, "-p", "--model", model, "--allowedTools", tools], input=prompt, cwd=DATA, env=env,
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout)
+    except subprocess.TimeoutExpired:
+        return False, f"Claude가 {timeout // 60}분 안에 끝내지 못함"
+    out = (p.stdout or "") + (p.stderr or "")
+    return p.returncode == 0, out.strip()[-2000:]
+
+
+def recommend(on_progress=None, min_pass: int = 8) -> dict:
+    """Claude가 출처를 제안 → 프로그램이 하나씩 시험. 통과가 적으면 한 번만 다시 제안받는다."""
+    for f in (PROPOSAL, TEST_RESULT):
+        f.unlink(missing_ok=True)
+    result = {}
+    for attempt in (1, 2):
+        if on_progress:
+            on_progress(0, 0, "claude", True)
+        ok, out = run_claude(prompt_text("recommend"), "Read,Write,Glob", timeout=600)
+        if not PROPOSAL.exists():
+            raise RuntimeError(f"Claude가 추천을 쓰지 못함: {out[-300:]}")
+        result = test_sources(PROPOSAL, False, on_progress)
+        if result["summary"]["passed"] >= min_pass:
+            break
+    return result
+
+
+# ── 매일 실행 (작업 스케줄러가 부르는 것: 수집 → Claude 정리 → 페이지) ──
+
+def log(msg: str) -> None:
+    line = f"[{now_kst().strftime('%H:%M:%S')}] {msg}"
+    print(line, flush=True)
+    LOGS.mkdir(parents=True, exist_ok=True)
+    with open(LOGS / f"{now_kst().strftime('%Y-%m-%d')}.log", "a", encoding="utf-8") as f:
+        f.write(line + "\n")
+
+
+def run_daily() -> int:
+    """성공하면 0. 오늘 보관분(archive/<오늘>.json)이 생겼는지로 판단한다."""
+    today = now_kst().strftime("%Y-%m-%d")
+    log(f"시작 (NewsRadar {VERSION}, 데이터 {DATA})")
+    try:
+        collect(2, False)
+    except SystemExit as e:
+        if e.code:
+            log(f"수집 실패 또는 후보 없음: {e.code}")
+            return 1
+    profile = load_profile()
+    names = ("daily", "weekly") if profile.get("weekly", True) else ("daily",)
+    ok, out = run_claude(prompt_text(*names), "Bash,Read,Write,Edit,Glob,Grep")
+    log(f"Claude 정리 {'끝' if ok else '실패'}: {out[-500:]}")
+    done = (ARCHIVE / f"{today}.json").exists()
+    log("성공" if done else "실패: 오늘 정리가 만들어지지 않음")
+    return 0 if done else 1
 
 
 def main() -> None:
@@ -678,10 +818,19 @@ def main() -> None:
     ts = sub.add_parser("test-source", help="Claude의 출처 제안(recommend.json)을 하나씩 시험")
     ts.add_argument("proposal", nargs="?", help=f"제안 파일 (기본 {PROPOSAL.name})")
     ts.add_argument("--save", action="store_true", help="통과한 것을 sources.yaml·profile.yaml에 저장")
+    sub.add_parser("run", help="매일 실행: 수집 → Claude 정리 → 페이지 (작업 스케줄러가 부름)")
+    sp = sub.add_parser("setup", help="설정 화면 열기 (이 PC 안에서만 열리는 화면)")
+    sp.add_argument("--no-browser", action="store_true", help="브라우저를 열지 않음 (시험용)")
     a = p.parse_args()
     t0 = time.time()
     if a.cmd == "where":
         print(DATA)
+        return
+    if a.cmd == "run":
+        sys.exit(run_daily())
+    if a.cmd == "setup":
+        from setup_server import serve
+        serve(open_browser=not a.no_browser)
         return
     if a.cmd == "test-source":
         test_sources(Path(a.proposal) if a.proposal else PROPOSAL, a.save)
