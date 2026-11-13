@@ -12,18 +12,18 @@
 <style>
 /* 스타일 "깔끔한 앱": 흰 카드 + 큰 굵은 고딕 + 파란 강조. 레이아웃: 흐름 카드 2열 + 오른쪽 '그 밖의 소식' */
 :root{
-  --bg:#f2f4f6; --panel:#ffffff; --sub:#f7f8fa; --fg:#191f28; --muted:#6b7684; --line:#e5e8eb;
-  --accent:#3182f6; --accent-bg:#e8f3ff; --shadow:0 1px 2px rgba(0,0,0,.04);
+  --bg:#f2f4f6; --panel:#ffffff; --sub:#f4f5f7; --fg:#191f28; --muted:#6b7684; --line:#e5e8eb;
+  --accent:#3182f6; --accent-bg:#e8f3ff; --accent-ink:#1b64da; --shadow:0 1px 2px rgba(0,0,0,.04);
   --c1:#2f6fdf; --c2:#0f8a6a; --c3:#b4531a; --c4:#8a3fc4; --c5:#4a5b6e; --c6:#c23a4b; --c7:#7a6a12; --c8:#1f7f99;
   --head:"Gothic A1","Noto Sans KR",sans-serif; --body:"Noto Sans KR",system-ui,-apple-system,"Malgun Gothic",sans-serif;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#101318; --panel:#191d24; --sub:#20252d; --fg:#eceef1; --muted:#9aa4b1; --line:#2b313a;
-  --accent:#5b9dff; --accent-bg:#1b2a40; --shadow:none;
+  --accent:#5b9dff; --accent-bg:#1b2a40; --accent-ink:#7fb0ff; --shadow:none;
   --c1:#7fa9f5; --c2:#4fcaa6; --c3:#f0965c; --c4:#c08cf0; --c5:#9fb0c2; --c6:#f07c8a; --c7:#d9c25a; --c8:#6cc6de; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#101318; --panel:#191d24; --sub:#20252d; --fg:#eceef1; --muted:#9aa4b1; --line:#2b313a;
-  --accent:#5b9dff; --accent-bg:#1b2a40; --shadow:none;
+  --accent:#5b9dff; --accent-bg:#1b2a40; --accent-ink:#7fb0ff; --shadow:none;
   --c1:#7fa9f5; --c2:#4fcaa6; --c3:#f0965c; --c4:#c08cf0; --c5:#9fb0c2; --c6:#f07c8a; --c7:#d9c25a; --c8:#6cc6de; color-scheme:dark}
 *,*::before,*::after{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.6;word-break:keep-all}
@@ -53,8 +53,9 @@ h2{font-family:var(--head);font-size:16px;font-weight:700;margin:0 0 12px}
 .card{background:var(--panel);border-radius:20px;padding:22px 22px 14px;display:flex;flex-direction:column;gap:10px;min-width:0;box-shadow:var(--shadow)}
 .card h3{font-family:var(--head);font-size:22px;font-weight:800;line-height:1.35;margin:0;text-wrap:balance}
 .card .line{margin:0;color:var(--muted);font-size:14.5px}
-.use{margin:0;font-size:14px;color:var(--accent);background:var(--accent-bg);padding:8px 12px;border-radius:10px}
-.use b{font-weight:700;margin-right:6px}
+/* 업무 적용 포인트: 회색 상자 + 옅은 파란 이름표(시안 C, 2026-11-13) */
+.use{margin:0;font-size:14px;color:var(--fg);background:var(--sub);padding:10px 12px;border-radius:12px;display:flex;flex-direction:column;align-items:flex-start;gap:6px}
+.chip{display:inline-block;font-size:12px;font-weight:700;line-height:1;padding:5px 10px;border-radius:999px;white-space:nowrap;background:var(--accent-bg);color:var(--accent-ink)}
 .list{list-style:none;margin:2px 0 0;padding:0;display:flex;flex-direction:column}
 .list li{padding:9px 0;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:2px;min-width:0}
 .list a{text-decoration:none;font-weight:500;line-height:1.45}
@@ -158,7 +159,7 @@ function drawDay(page, isToday) {
   document.getElementById('flow-title').textContent = isToday ? '오늘의 흐름' : `${md(page.date)}(${dayName(page.date)}) 흐름`;
   document.getElementById('themes').replaceChildren(...page.themes.map((t) => {
     const card = el('article', 'card');
-    const use = el('p', 'use'); use.append(el('b', null, '내 일에'), document.createTextNode(t.use));
+    const use = el('p', 'use'); use.append(el('span', 'chip', '업무 적용 포인트'), el('span', null, t.use));
     const ul = el('ul', 'list'); t.items.forEach((x) => ul.append(row(x)));
     card.append(el('h3', null, t.name), el('p', 'line', t.line), use, ul); return card;
   }));
@@ -183,7 +184,7 @@ function drawWeek() {
     const cards = el('div', 'themes');
     w.points.forEach((p) => {
       const card = el('article', 'card');
-      const use = el('p', 'use'); use.append(el('b', null, '내 일에'), document.createTextNode(p.use));
+      const use = el('p', 'use'); use.append(el('span', 'chip', '업무 적용 포인트'), el('span', null, p.use));
       const ul = el('ul', 'list'); p.items.forEach((x) => ul.append(row(x)));
       card.append(el('h3', null, p.name), el('p', 'line', p.line), use, ul); cards.append(card);
     });
