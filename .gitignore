@@ -1,0 +1,18 @@
+# 사용자 데이터·실행 기록·비밀 값
+data/
+logs/
+*.token
+token*
+.env
+.env.*
+!.env.example
+
+# 파이썬
+__pycache__/
+.venv/
+*.pyc
+
+# 공개 저장소에 올리지 않는 것 (2026-11-13 결정: 문서·원본은 로컬에만)
+CLAUDE.md
+작업문서.md
+원본/
