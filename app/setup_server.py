@@ -68,13 +68,27 @@ def current_state() -> dict:
 # ── 오래 걸리는 일 (따로 돌린다) ──
 
 def do_connect() -> None:
-    set_job(kind="connect", stage="working", message="Claude에 연결하고 있어요", error="")
-    radar.DATA.mkdir(parents=True, exist_ok=True)
-    ok, out = radar.run_claude("ok라고만 답해", "Read", timeout=120)
-    if ok:
-        set_job(stage="done", message="연결됐어요")
-    else:
-        set_job(stage="error", error="Claude에 연결하지 못했어요. Claude Code에 로그인했는지 확인해 주세요.", message=out[-300:])
+    """NewsRadar 전용 설정 폴더로 claude auth login. 브라우저가 열리고, 로그인하면 끝난다.
+    브라우저 연결이 안 되는 PC에서는 코드를 붙여 넣으라고 하므로 창을 보이게 띄운다 (Windows: 새 콘솔)."""
+    import subprocess
+    set_job(kind="connect", stage="working", message="브라우저에서 Claude에 로그인해 주세요", error="")
+    exe = radar.claude_exe()
+    if not exe:
+        return set_job(stage="error", error="Claude Code가 설치되어 있지 않아요. 설치 파일을 다시 실행해 주세요.")
+    radar.CLAUDE_HOME.mkdir(parents=True, exist_ok=True)
+    flags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
+    proc = subprocess.Popen([exe, "auth", "login"], env=radar.claude_env(), creationflags=flags)
+    deadline = time.time() + 15 * 60
+    while time.time() < deadline:
+        time.sleep(3)
+        if radar.auth_status().get("loggedIn"):
+            if proc.poll() is None:
+                proc.terminate()
+            return set_job(stage="done", message="연결됐어요")
+        if proc.poll() is not None and not radar.auth_status().get("loggedIn"):
+            return set_job(stage="error", error="로그인이 끝나지 않았어요. 다시 해 주세요.")
+    proc.terminate()
+    set_job(stage="error", error="15분 안에 로그인이 끝나지 않았어요. 다시 해 주세요.")
 
 
 def do_recommend(form: dict) -> None:
@@ -185,6 +199,9 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(403, b"forbidden", "text/plain")
         if self.path == "/api/state":
             return self.json(current_state())
+        if self.path == "/api/auth":
+            a = radar.auth_status()
+            return self.json({"loggedIn": bool(a.get("loggedIn")), "missing": bool(a.get("missing"))})
         if self.path == "/api/progress":
             with LOCK:
                 return self.json(dict(JOB))

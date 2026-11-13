@@ -462,6 +462,7 @@ def write_site(profile: dict) -> None:
         "weekly": weekly_page(history[0]["date"] if history else None),
         "search": profile.get("search") or profile.get("field") or "",
         "survey": survey_info(),
+        "login_days": login_warning(),
     }
     text = json.dumps(data, ensure_ascii=False).replace("<", "\\u003c")
     SITE.parent.mkdir(parents=True, exist_ok=True)
@@ -737,18 +738,49 @@ def prompt_text(*names: str) -> str:
     return text.replace("{RADAR}", radar).replace("{CATALOG}", str(CATALOG))
 
 
-def run_claude(prompt: str, tools: str, timeout: int = 900) -> tuple[bool, str]:
-    """claude -p를 데이터 폴더에서 실행한다. 도구는 tools로 제한, API 키가 있어도 쓰지 않는다(요금 방지)."""
+# NewsRadar 전용 Claude Code 설정 폴더. 로그인 정보도 여기 저장된다(claude auth login).
+# 그 PC의 개인 CLAUDE.md·메모리·설정이 정리에 섞이지 않게 하려는 것 (--restricted로는 CLAUDE.md가 막히지 않았다, 2026-11-13 시험)
+CLAUDE_HOME = DATA / "claude-home"
+
+
+def claude_exe() -> str | None:
     import shutil
+    return shutil.which("claude")
+
+
+def claude_env() -> dict:
+    env = {k: v for k, v in os.environ.items() if k not in ("ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN")}  # API 요금 방지
+    env["CLAUDE_CONFIG_DIR"] = str(CLAUDE_HOME)
+    env["NEWSRADAR_DATA"] = str(DATA)
+    return env
+
+
+def auth_status() -> dict:
+    """{'loggedIn': bool, 'loginExpiresAt': ...}. Claude Code가 없으면 {'missing': True}."""
     import subprocess
-    exe = shutil.which("claude")
+    exe = claude_exe()
+    if not exe:
+        return {"missing": True, "loggedIn": False}
+    CLAUDE_HOME.mkdir(parents=True, exist_ok=True)
+    try:
+        p = subprocess.run([exe, "auth", "status", "--json"], env=claude_env(), capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", timeout=60)
+        return json.loads(p.stdout)
+    except Exception:
+        return {"loggedIn": False}
+
+
+def run_claude(prompt: str, tools: str, timeout: int = 900) -> tuple[bool, str]:
+    """claude -p를 데이터 폴더에서, 전용 설정 폴더로 실행한다. 도구는 tools로 제한."""
+    import subprocess
+    exe = claude_exe()
     if not exe:
         return False, "Claude Code가 설치되어 있지 않음"
-    env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
-    env["NEWSRADAR_DATA"] = str(DATA)
+    env = claude_env()
     model = (read_yaml(PROFILE) if PROFILE.exists() else {}).get("model") or "claude-sonnet-5-5"
     try:
-        p = subprocess.run([exe, "-p", "--model", model, "--allowedTools", tools], input=prompt, cwd=DATA, env=env,
+        p = subprocess.run([exe, "-p", "--model", model, "--allowedTools", tools, "--no-session-persistence"],
+                           input=prompt, cwd=DATA, env=env,
                            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout)
     except subprocess.TimeoutExpired:
         return False, f"Claude가 {timeout // 60}분 안에 끝내지 못함"
@@ -783,8 +815,22 @@ def log(msg: str) -> None:
         f.write(line + "\n")
 
 
+AUTH_NOTE = DATA / "claude-auth.json"  # 마지막으로 확인한 로그인 상태 (페이지가 만료 전에 미리 알리는 데 씀)
+LOGIN_WARN_DAYS = 5
+
+
+def login_warning() -> int | None:
+    """로그인이 며칠 뒤 끝나는지 (5일 안쪽일 때만)."""
+    try:
+        exp = json.loads(AUTH_NOTE.read_text(encoding="utf-8")).get("expires")
+        days = (datetime.fromisoformat(exp.replace("Z", "+00:00")) - datetime.now(timezone.utc)).days
+        return max(days, 0) if days < LOGIN_WARN_DAYS else None
+    except Exception:
+        return None
+
+
 def run_daily() -> int:
-    """성공하면 0. 오늘 보관분(archive/<오늘>.json)이 생겼는지로 판단한다."""
+    """성공 0, 실패 1, Claude 연결이 풀림 3. 오늘 보관분(archive/<오늘>.json)이 생겼는지로 판단한다."""
     today = now_kst().strftime("%Y-%m-%d")
     log(f"시작 (NewsRadar {VERSION}, 데이터 {DATA})")
     try:
@@ -793,6 +839,12 @@ def run_daily() -> int:
         if e.code:
             log(f"수집 실패 또는 후보 없음: {e.code}")
             return 1
+    auth = auth_status()
+    AUTH_NOTE.write_text(json.dumps({"loggedIn": bool(auth.get("loggedIn")), "expires": auth.get("loginExpiresAt"),
+                                     "checked": today}, ensure_ascii=False), encoding="utf-8")
+    if not auth.get("loggedIn"):
+        log("Claude 연결이 풀림 (설정 화면에서 다시 연결해야 함)" if not auth.get("missing") else "Claude Code가 설치되어 있지 않음")
+        return 3  # 실행 스크립트가 '다시 연결해 주세요' 알림을 보낸다
     profile = load_profile()
     names = ("daily", "weekly") if profile.get("weekly", True) else ("daily",)
     ok, out = run_claude(prompt_text(*names), "Bash,Read,Write,Edit,Glob,Grep")

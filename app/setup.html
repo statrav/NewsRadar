@@ -69,10 +69,11 @@ h1{font-family:var(--head);font-size:26px;font-weight:800;margin:0;line-height:1
 
   <!-- ① Claude 연결 -->
   <section class="card center" id="s-connect">
-    <h1>Claude에 연결하고 있어요</h1>
+    <h1 id="connect-title">Claude 연결을 확인하고 있어요</h1>
+    <p class="sub" id="connect-msg" style="margin:0" hidden>정리는 내 Claude 계정으로 하루 한 번 해요.</p>
     <div class="progress wait" id="connect-bar"><i></i></div>
     <p class="err" id="connect-err" hidden></p>
-    <button type="button" class="ghost" id="connect-retry" hidden>다시 확인</button>
+    <button type="button" class="primary" id="connect-go" hidden>Claude 연결하기</button>
   </section>
 
   <!-- ② 내 분야 -->
@@ -177,19 +178,33 @@ function chips(box, items, pick) {
 }
 const readyCheck = () => { $('to-recommend').disabled = !(state.field.trim() && state.minutes); };
 
-// ① 연결 확인: 열자마자 확인하고, 되면 바로 ②로
-async function connect() {
-  show('s-connect', 1); $('connect-err').hidden = true; $('connect-retry').hidden = true; $('connect-bar').hidden = false;
+// ① 연결: 열자마자 로그인 상태를 보고, 되어 있으면 바로 ②로. 아니면 [Claude 연결하기] → 브라우저 로그인
+function askConnect(err) {
+  $('connect-title').textContent = 'Claude에 연결해 주세요';
+  $('connect-msg').textContent = '정리는 내 Claude 계정으로 하루 한 번 해요.'; $('connect-msg').hidden = false;
+  $('connect-bar').hidden = true; $('connect-go').hidden = false; $('connect-go').disabled = false;
+  $('connect-err').textContent = err || ''; $('connect-err').hidden = !err;
+}
+async function checkAuth() {
+  show('s-connect', 1);
+  try {
+    const a = await api('/api/auth');
+    if (a.loggedIn) return show('s-field', 2);
+    askConnect(a.missing ? 'Claude Code가 설치되어 있지 않아요. 설치 파일을 다시 실행해 주세요.' : '');
+    if (a.missing) $('connect-go').hidden = true;
+  } catch (e) { askConnect(e.message); }
+}
+$('connect-go').addEventListener('click', async () => {
+  $('connect-go').disabled = true; $('connect-err').hidden = true; $('connect-bar').hidden = false;
+  $('connect-title').textContent = '브라우저에서 로그인해 주세요';
+  $('connect-msg').textContent = '로그인하고 허용을 누르면 여기로 돌아와요. 회사 계정이면 메일로 온 인증 코드를 넣어 주세요.';
   try {
     await api('/api/connect', {});
     const j = await follow();
     if (j.stage === 'error') throw new Error(j.error);
     show('s-field', 2);
-  } catch (e) {
-    $('connect-bar').hidden = true; $('connect-err').textContent = e.message; $('connect-err').hidden = false; $('connect-retry').hidden = false;
-  }
-}
-$('connect-retry').addEventListener('click', connect);
+  } catch (e) { askConnect(e.message); }
+});
 
 // ② 분야
 chips($('fields'), [...FIELDS, '직접 적기'], (v) => {
@@ -267,7 +282,7 @@ $('start').addEventListener('click', async () => {
     if (s.minutes) [...$('minutes').children].find((c) => c.textContent === s.minutes)?.click();
     readyCheck();
   } catch (e) { /* 처음 설치면 비어 있어도 된다 */ }
-  connect();
+  checkAuth();
 })();
 </script>
 </body>

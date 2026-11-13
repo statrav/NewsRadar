@@ -119,6 +119,8 @@ h2{font-family:var(--head);font-size:16px;font-weight:700;margin:0 0 12px}
     </div>
   </header>
 
+  <p class="survey" id="login-note" hidden style="font-size:15px;flex-direction:row"></p>
+
   <section class="survey" id="survey" hidden>
     <h2 id="survey-q"></h2>
     <div class="opts" id="survey-opts"></div>
@@ -268,6 +270,13 @@ if (DATA && DATA.history.length) {
   vWeek.addEventListener('click', () => show('week'));
   past.addEventListener('change', () => { if (past.value) show('day', past.value); });
   show(location.hash === '#week' ? 'week' : 'day');
+}
+
+// ── Claude 연결이 곧 끝날 때 (회사 계정은 한 달쯤마다 다시 로그인) ──
+if (DATA && DATA.login_days != null) {
+  const n = document.getElementById('login-note');
+  n.textContent = `Claude 연결이 ${DATA.login_days ? `${DATA.login_days}일 뒤` : '오늘'} 끝나요. 바탕화면의 'NewsRadar 설정'을 열어 다시 연결해 주세요.`;
+  n.hidden = false;
 }
 
 // ── 설치 2주·한 달째 질문: 고르면 구글 폼으로 보내고, 답한 것을 이 브라우저에 기억 ──
