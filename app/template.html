@@ -120,6 +120,7 @@ h2{font-family:var(--head);font-size:16px;font-weight:700;margin:0 0 12px}
   </header>
 
   <p class="survey" id="login-note" hidden style="font-size:15px;flex-direction:row"></p>
+  <p class="survey" id="problem-note" hidden style="font-size:15px;display:block"></p>
 
   <section class="survey" id="survey" hidden>
     <h2 id="survey-q"></h2>
@@ -276,6 +277,14 @@ if (DATA && DATA.history.length) {
 if (DATA && DATA.login_days != null) {
   const n = document.getElementById('login-note');
   n.textContent = `Claude 연결이 ${DATA.login_days ? `${DATA.login_days}일 뒤` : '오늘'} 끝나요. 바탕화면의 'NewsRadar 설정'을 열어 다시 연결해 주세요.`;
+  n.hidden = false;
+}
+
+// ── 마지막 정리를 만들지 못했을 때: 이유 한 줄 + 실행 기록 (다음에 성공하면 사라짐) ──
+if (DATA && DATA.problem) {
+  const p = DATA.problem, n = document.getElementById('problem-note');
+  const a = el('a', null, '실행 기록 보기'); a.href = p.log; a.style.marginLeft = '8px'; a.style.color = 'var(--accent-ink)';
+  n.append(el('b', null, `${md(p.date)} 정리를 만들지 못했어요. `), document.createTextNode(p.reason), a);
   n.hidden = false;
 }
 

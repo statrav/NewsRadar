@@ -463,6 +463,7 @@ def write_site(profile: dict) -> None:
         "search": profile.get("search") or profile.get("field") or "",
         "survey": survey_info(),
         "login_days": login_warning(),
+        "problem": last_run_problem(),
     }
     text = json.dumps(data, ensure_ascii=False).replace("<", "\\u003c")
     SITE.parent.mkdir(parents=True, exist_ok=True)
@@ -844,35 +845,84 @@ def login_warning() -> int | None:
         return None
 
 
+LAST_RUN = DATA / "last-run.json"  # 마지막 매일 실행 결과 (실패한 날 페이지 맨 위에 이유를 보이는 데 씀)
+
+
+def why_no_candidates() -> str:
+    """후보가 0건인 이유: 출처를 거의 못 받았는지(인터넷), 새 글이 정말 없었는지."""
+    try:
+        c = json.loads(CANDIDATES.read_text(encoding="utf-8"))
+        total, failed = c.get("sources") or 0, len(c.get("errors") or {})
+        if total and failed >= total * 0.8:
+            return f"소식을 받아 오지 못했어요 (출처 {total}곳 중 {failed}곳 실패). 인터넷이나 회사 네트워크 연결을 확인해 주세요."
+    except Exception:
+        pass
+    return "지난 이틀 동안 새 소식이 없었어요."
+
+
+def why_claude_failed(out: str) -> str:
+    low = out.lower()
+    if "limit" in low or "한도" in out:
+        return "Claude 사용 한도에 걸려 정리하지 못했어요. 한도가 풀리면 다음 정해진 시간에 다시 해요."
+    if "끝내지 못함" in out:
+        return "Claude가 정리를 제시간에 끝내지 못했어요."
+    return "Claude가 정리를 마치지 못했어요."
+
+
 def run_daily() -> int:
-    """성공 0, 실패 1, Claude 연결이 풀림 3. 오늘 보관분(archive/<오늘>.json)이 생겼는지로 판단한다."""
+    """성공 0, 실패 1, Claude 연결이 풀림 3. 결과는 last-run.json에 남기고, 실패하면 페이지 맨 위에 이유를 보인다."""
     today = now_kst().strftime("%Y-%m-%d")
     log(f"시작 (NewsRadar {VERSION}, 데이터 {DATA})")
+    try:
+        code, reason = run_steps(today)
+    except BaseException as e:  # 설정 파일이 깨졌을 때 등 (sys.exit 포함)
+        code, reason = 1, f"정리하다가 문제가 생겼어요: {e}"[:200]
+    log("성공" if code == 0 else f"실패: {reason}")
+    LAST_RUN.write_text(json.dumps({"date": today, "code": code, "reason": reason,
+                                    "log": (LOGS / f"{today}.log").as_uri()}, ensure_ascii=False), encoding="utf-8")
+    if code and SITE.exists():
+        try:
+            write_site(load_profile())  # 페이지 맨 위에 이유가 보이게 (지난 정리는 그대로)
+        except BaseException:
+            pass
+    return code
+
+
+def run_steps(today: str) -> tuple[int, str]:
     if (ARCHIVE / f"{today}.json").exists() and not os.environ.get("NEWSRADAR_FORCE"):
         # 설치하는 날처럼 같은 날 두 번 돌면, 새 글이 적어 오늘 정리를 작게 덮어쓰거나 '실패' 알림이 간다 → 하루 한 번만
         log("오늘 정리가 이미 있어 다시 만들지 않음 (다시 만들려면 NEWSRADAR_FORCE=1)")
-        return 0
+        return 0, ""
     try:
         collect(2, False)
     except SystemExit as e:
+        if e.code == 2:
+            return 1, why_no_candidates()
         if e.code:
-            log(f"수집 실패 또는 후보 없음: {e.code}")
-            return 1
+            return 1, f"소식을 모으다가 문제가 생겼어요: {e.code}"[:200]
     auth = auth_status()
     AUTH_NOTE.write_text(json.dumps({"loggedIn": bool(auth.get("loggedIn")), "expires": auth.get("loginExpiresAt"),
                                      "checked": today}, ensure_ascii=False), encoding="utf-8")
     if not auth.get("loggedIn"):
-        log("Claude 연결이 풀림 (설정 화면에서 다시 연결해야 함)" if not auth.get("missing") else "Claude Code가 설치되어 있지 않음")
-        if SITE.exists():
-            write_site(load_profile())  # 페이지 맨 위에 '다시 연결해 주세요'가 보이게
-        return 3  # 실행 스크립트가 '다시 연결해 주세요' 알림을 보낸다
+        if auth.get("missing"):
+            return 1, "Claude Code가 설치되어 있지 않아요. 설치.cmd를 다시 실행해 주세요."
+        return 3, "Claude 연결이 풀렸어요."  # 페이지에는 '다시 연결해 주세요' 안내가 따로 뜬다
     profile = load_profile()
     names = ("daily", "weekly") if profile.get("weekly", True) else ("daily",)
     ok, out = run_claude(prompt_text(*names), "Bash,Read,Write,Edit,Glob,Grep")
     log(f"Claude 정리 {'끝' if ok else '실패'}: {out[-500:]}")
-    done = (ARCHIVE / f"{today}.json").exists()
-    log("성공" if done else "실패: 오늘 정리가 만들어지지 않음")
-    return 0 if done else 1
+    if (ARCHIVE / f"{today}.json").exists():
+        return 0, ""
+    return 1, why_claude_failed(out)
+
+
+def last_run_problem() -> dict | None:
+    """마지막 매일 실행이 실패했으면 {이유, 날짜, 기록 주소}. Claude 연결 풀림은 따로 보이므로 빼고."""
+    try:
+        r = json.loads(LAST_RUN.read_text(encoding="utf-8"))
+        return r if r.get("code") not in (0, 3) else None
+    except Exception:
+        return None
 
 
 def main() -> None:

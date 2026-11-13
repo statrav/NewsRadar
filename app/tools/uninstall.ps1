@@ -8,8 +8,7 @@ $ok = [System.Windows.Forms.MessageBox]::Show('NewsRadar를 지울까요?', 'New
 if ($ok -ne 'Yes') { return }
 
 Unregister-ScheduledTask -TaskName 'NewsRadar' -Confirm:$false -ErrorAction SilentlyContinue
-$desktop = [Environment]::GetFolderPath('Desktop')
-Remove-Item (Join-Path $desktop 'NewsRadar.lnk'), (Join-Path $desktop 'NewsRadar 설정.lnk') -ErrorAction SilentlyContinue
+& (Join-Path $PSScriptRoot 'shortcuts.ps1') -Remove   # 바탕화면·시작 메뉴
 
 $keep = [System.Windows.Forms.MessageBox]::Show("내 설정과 지난 정리 기록, Claude 연결도 지울까요?`n'아니요'를 누르면 남겨 두고, 다시 설치하면 그대로 이어서 써요.", 'NewsRadar 지우기', 'YesNo', 'Question')
 Remove-Item $app -Recurse -Force -ErrorAction SilentlyContinue

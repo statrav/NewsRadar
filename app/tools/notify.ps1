@@ -1,4 +1,4 @@
-﻿# 정리 결과 알림 (run.ps1이 부른다). 누르면: 성공·연결 풀림 → 정리 페이지, 실패 → 그날 실행 기록
+﻿# 정리 결과 알림 (run.ps1이 부른다). 누르면 정리 페이지가 열린다 (실패·연결 풀림이면 페이지 맨 위에 이유가 보임)
 # -Code: radar.py run의 종료 코드 (0 성공, 3 Claude 연결 풀림, 그 밖 실패)
 param([int]$Code = 1)
 $ErrorActionPreference = 'Continue'
@@ -19,9 +19,9 @@ if ($Code -eq 0 -and (Test-Path $archive)) {
     $body = "바탕화면의 'NewsRadar 설정'을 열어 다시 연결해 주세요."
     $url = $page
 } else {
-    $title = '오늘 정리가 실패했어요'
-    $body = '눌러서 실행 기록을 확인하세요. 내일 정한 시간에 다시 해 볼게요.'
-    $url = if (Test-Path $log) { ([Uri]$log).AbsoluteUri } else { $page }
+    $title = '오늘 정리를 만들지 못했어요'
+    $body = '눌러서 이유를 확인하세요. 내일 정한 시간에 다시 해 볼게요.'
+    $url = if (Test-Path (Join-Path $data 'site\index.html')) { $page } elseif (Test-Path $log) { ([Uri]$log).AbsoluteUri } else { $page }
 }
 
 function Esc([string]$s) { [System.Security.SecurityElement]::Escape($s) }
@@ -38,6 +38,7 @@ $xml = @"
 "@
 $doc = New-Object Windows.Data.Xml.Dom.XmlDocument
 $doc.LoadXml($xml)
-# 알림 보낸 쪽 이름은 'Windows PowerShell'로 보인다 (NewsRadar로 바꾸는 것은 M8에서 판단)
-$appId = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe'
+# 시작 메뉴 NewsRadar 바로가기(앱 ID 'NewsRadar', shortcuts.ps1)가 있으면 알림 보낸 쪽 이름이 NewsRadar로 보인다
+$startLink = Join-Path ([Environment]::GetFolderPath('Programs')) 'NewsRadar.lnk'
+$appId = if (Test-Path $startLink) { 'NewsRadar' } else { '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe' }
 [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($appId).Show([Windows.UI.Notifications.ToastNotification]::new($doc))
