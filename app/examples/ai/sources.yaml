@@ -1,0 +1,8 @@
+# 예시 출처: AI 분야. catalog의 id를 고르고, 필요하면 직접 넣은 출처를 더한다
+catalog: [pytorch-kr-news, geeknews, openai-news, google-ai-blog, deepmind-blog, huggingface-blog,
+  anthropic-news, meta-ai-blog,
+  news-openai, news-anthropic, news-gemini, news-meta-ai, news-microsoft-ai, news-deepseek, news-qwen,
+  news-exaone, news-upstage, news-hyperclova]
+feeds: []
+pages: []
+news: []

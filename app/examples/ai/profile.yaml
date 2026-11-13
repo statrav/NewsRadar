@@ -1,0 +1,14 @@
+# 예시 설정: AI 분야. 설정 화면이 이 모양의 파일을 데이터 폴더에 만든다
+field: "AI"                                             # 분야 (자유 입력)
+job: "기업 고객의 LLM·에이전트·RAG 서비스를 기획하고 개발"   # 정리의 '내 일에' 문장에 쓰임
+follow: [OpenAI, Anthropic, Google, Meta, 네이버, 업스테이지]  # 꼭 따라갈 곳
+regions: [ko, en]
+categories: [모델, 에이전트, RAG·검색, 멀티모달, 인프라·서빙, 안전·정책, 연구, 시장·산업]   # 1~8개
+# keywords: filter: true인 출처에서 이 단어가 제목·요약에 있을 때만 받는다 / exclude: 제목에 있으면 버린다
+# 정규식은 작은따옴표로 감싼다 (\b 같은 역슬래시를 그대로 쓸 수 있다)
+keywords: '\b(AI|LLM|LLMs|GPT|Claude|Gemini|Llama|Qwen|agent|agents|agentic|RAG|retrieval|embedding|multimodal|vision|inference|transformer|diffusion|fine-?tun\w*|MCP|model|models|neural|machine learning|deep learning)\b|에이전트|임베딩|멀티모달|추론|모델|생성형|인공지능|머신러닝|딥러닝|파인튜닝|검색 증강'
+exclude: '\b(stocks?|shares|price target|investors?|earnings|dividend|NASDAQ|NYSE|buy rating|arrest\w*|charged|lawsuit|sues)\b|주가|목표가|증시|상장|매수|소송|체포'
+search: "AI agent"                                      # 정리 페이지 위 '직접 찾아보기' 기본 검색어
+time: "09:30"
+weekly: true                                            # 금요일에 이번 주 요약
+model: claude-sonnet-5-5

@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>NewsRadar</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%233182f6'/%3E%3Ccircle cx='32' cy='32' r='20' fill='none' stroke='%23fff' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='10' fill='none' stroke='%23fff' stroke-width='4'/%3E%3Ccircle cx='46' cy='18' r='5' fill='%23fff'/%3E%3C/svg%3E">
+<meta name="theme-color" content="#f2f4f6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#101318" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@700;800&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+/* 스타일 "깔끔한 앱": 흰 카드 + 큰 굵은 고딕 + 파란 강조. 레이아웃: 흐름 카드 2열 + 오른쪽 '그 밖의 소식' */
+:root{
+  --bg:#f2f4f6; --panel:#ffffff; --sub:#f7f8fa; --fg:#191f28; --muted:#6b7684; --line:#e5e8eb;
+  --accent:#3182f6; --accent-bg:#e8f3ff; --shadow:0 1px 2px rgba(0,0,0,.04);
+  --c1:#2f6fdf; --c2:#0f8a6a; --c3:#b4531a; --c4:#8a3fc4; --c5:#4a5b6e; --c6:#c23a4b; --c7:#7a6a12; --c8:#1f7f99;
+  --head:"Gothic A1","Noto Sans KR",sans-serif; --body:"Noto Sans KR",system-ui,-apple-system,"Malgun Gothic",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#101318; --panel:#191d24; --sub:#20252d; --fg:#eceef1; --muted:#9aa4b1; --line:#2b313a;
+  --accent:#5b9dff; --accent-bg:#1b2a40; --shadow:none;
+  --c1:#7fa9f5; --c2:#4fcaa6; --c3:#f0965c; --c4:#c08cf0; --c5:#9fb0c2; --c6:#f07c8a; --c7:#d9c25a; --c8:#6cc6de; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#101318; --panel:#191d24; --sub:#20252d; --fg:#eceef1; --muted:#9aa4b1; --line:#2b313a;
+  --accent:#5b9dff; --accent-bg:#1b2a40; --shadow:none;
+  --c1:#7fa9f5; --c2:#4fcaa6; --c3:#f0965c; --c4:#c08cf0; --c5:#9fb0c2; --c6:#f07c8a; --c7:#d9c25a; --c8:#6cc6de; color-scheme:dark}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.6;word-break:keep-all}
+.wrap{max-width:90rem;margin:0 auto;padding-block:calc(24px + env(safe-area-inset-top,0px)) calc(64px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:22px}
+a{color:inherit}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+button,select,input{font:inherit;color:var(--fg)}
+
+.top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px 24px}
+h1{font-family:var(--head);font-weight:800;font-size:34px;line-height:1.15;margin:0;letter-spacing:-.01em}
+.date{margin:6px 0 0;color:var(--muted);font-size:14px}
+.tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.tools input{font-size:14px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);width:14rem;max-width:100%}
+.btn{font-size:13px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);text-decoration:none;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--muted)}
+
+.nav{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.seg{display:inline-flex;background:var(--panel);border-radius:12px;padding:4px;gap:2px;box-shadow:var(--shadow)}
+.seg button{border:0;background:none;padding:7px 14px;border-radius:9px;font-size:14px;font-weight:500;cursor:pointer;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--accent-bg);color:var(--accent);font-weight:700}
+.nav select{font-size:14px;padding:8px 10px;border:0;border-radius:12px;background:var(--panel);box-shadow:var(--shadow);cursor:pointer}
+
+.main{display:grid;grid-template-columns:minmax(0,1fr) 23rem;gap:28px;align-items:start}
+@media (max-width:70rem){.main{grid-template-columns:minmax(0,1fr)}}
+h2{font-family:var(--head);font-size:16px;font-weight:700;margin:0 0 12px}
+.themes{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,26rem),1fr));gap:16px}
+.card{background:var(--panel);border-radius:20px;padding:22px 22px 14px;display:flex;flex-direction:column;gap:10px;min-width:0;box-shadow:var(--shadow)}
+.card h3{font-family:var(--head);font-size:22px;font-weight:800;line-height:1.35;margin:0;text-wrap:balance}
+.card .line{margin:0;color:var(--muted);font-size:14.5px}
+.use{margin:0;font-size:14px;color:var(--accent);background:var(--accent-bg);padding:8px 12px;border-radius:10px}
+.use b{font-weight:700;margin-right:6px}
+.list{list-style:none;margin:2px 0 0;padding:0;display:flex;flex-direction:column}
+.list li{padding:9px 0;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:2px;min-width:0}
+.list a{text-decoration:none;font-weight:500;line-height:1.45}
+.list a:hover{text-decoration:underline;color:var(--accent)}
+.meta{font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}
+.many{font-size:11px;font-weight:700;color:var(--accent);border:1px solid currentColor;border-radius:999px;padding:0 6px;line-height:1.5}
+
+.rail{display:flex;flex-direction:column;gap:14px;min-width:0}
+.cat{background:var(--panel);border-radius:20px;overflow:hidden;min-width:0;box-shadow:var(--shadow)}
+.cat h4{margin:0;padding:11px 18px;font-family:var(--head);font-size:15px;font-weight:700;display:flex;justify-content:space-between;align-items:center;gap:8px;color:var(--cc);background:color-mix(in srgb,var(--cc) 12%,var(--panel))}
+.cat h4 .dot{width:8px;height:8px;border-radius:50%;background:var(--cc);display:inline-block;margin-right:8px}
+.cat h4 .n{font-size:12px;font-weight:500;color:var(--muted);font-family:var(--body)}
+.cat .list{padding:0 18px 4px}
+.cat .list li:first-child{border-top:0}
+.cat .list a{font-size:14px;font-weight:400}
+
+.week-head{background:var(--panel);border-radius:20px;padding:22px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:6px}
+.week-head p{margin:0}
+.week-head .big{font-family:var(--head);font-size:22px;font-weight:800;line-height:1.4}
+.days{display:flex;flex-direction:column;gap:10px}
+.day{background:var(--panel);border-radius:16px;padding:14px 18px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:6px}
+.day button{align-self:flex-start;border:0;background:none;padding:0;font-family:var(--head);font-weight:700;font-size:15px;color:var(--accent);cursor:pointer}
+.day ul{margin:0;padding-left:18px;color:var(--fg);font-size:14px}
+.empty{background:var(--panel);border-radius:20px;padding:22px;color:var(--muted);box-shadow:var(--shadow)}
+.foot{font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>NewsRadar</h1>
+      <p class="date" id="date">아직 정리된 소식이 없습니다</p>
+    </div>
+    <div class="tools">
+      <label for="q" class="meta">직접 찾아보기</label>
+      <input id="q" type="search" placeholder="찾고 싶은 말">
+      <a class="btn" id="g-week" target="_blank" rel="noopener noreferrer" href="https://www.google.com/search?tbs=qdr:w">구글 지난 1주</a>
+      <a class="btn" id="g-news" target="_blank" rel="noopener noreferrer" href="https://news.google.com/?hl=ko&amp;gl=KR&amp;ceid=KR:ko">구글 뉴스</a>
+      <button class="btn" id="theme-btn" type="button">어두운 화면</button>
+    </div>
+  </header>
+
+  <nav class="nav" aria-label="보기">
+    <div class="seg">
+      <button id="v-day" type="button" aria-pressed="true">오늘</button>
+      <button id="v-week" type="button" aria-pressed="false">이번 주</button>
+    </div>
+    <label for="past" class="meta">지난 날짜</label>
+    <select id="past"></select>
+  </nav>
+
+  <div id="day-view" class="main">
+    <section><h2 id="flow-title">오늘의 흐름</h2><div class="themes" id="themes"></div></section>
+    <aside class="rail"><h2>그 밖의 소식</h2><div class="rail" id="others"></div></aside>
+  </div>
+
+  <div id="week-view" class="main" hidden>
+    <section>
+      <h2>이번 주 요약</h2>
+      <div id="week-sum"></div>
+    </section>
+    <aside class="rail"><h2>요일별 흐름</h2><div class="days" id="days"></div></aside>
+  </div>
+
+  <p class="foot" id="foot"></p>
+</div>
+
+<script>
+const DATA = /*DATA*/null;
+const KO_DAY = ['일', '월', '화', '수', '목', '금', '토'];
+// 분류 색: 그날 분류 목록(page.cats)에서 몇 번째인지로 고른다 (--c1 ~ --c8)
+const catColor = (cats, c) => { const i = cats.indexOf(c); return i < 0 ? '--muted' : `--c${(i % 8) + 1}`; };
+const el = (t, c, txt) => { const e = document.createElement(t); if (c) e.className = c; if (txt != null) e.textContent = txt; return e; };
+const md = (d) => { const [, m, dd] = d.split('-'); return `${+m}/${+dd}`; };
+const dayName = (d) => KO_DAY[new Date(d + 'T00:00:00+09:00').getDay()];
+const longDate = (d) => { const t = new Date(d + 'T00:00:00+09:00'); return `${t.getMonth() + 1}월 ${t.getDate()}일 ${KO_DAY[t.getDay()]}요일`; };
+const link = (text, url) => { const a = el('a', null, text); if (/^https:\/\//.test(url)) { a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; } return a; };
+const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+
+// ── 어두운/밝은 화면 ──
+const root = document.documentElement;
+const themeBtn = document.getElementById('theme-btn');
+const isDark = () => root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+const syncThemeBtn = () => { themeBtn.textContent = isDark() ? '밝은 화면' : '어두운 화면'; };
+const saved = store.get('radar-theme');
+if (saved === 'dark' || saved === 'light') root.dataset.theme = saved;
+themeBtn.addEventListener('click', () => { const next = isDark() ? 'light' : 'dark'; root.dataset.theme = next; store.set('radar-theme', next); syncThemeBtn(); });
+syncThemeBtn();
+
+// ── 그리기 ──
+function row(x) {
+  const li = el('li'); const meta = el('span', 'meta');
+  meta.append(el('span', null, [x.org, x.src].filter(Boolean).join(' · ')), el('span', null, md(x.date)));
+  if (x.n > 1) meta.append(el('span', 'many', `${x.n}곳`));
+  li.append(link(x.h, x.url), meta); return li;
+}
+function drawDay(page, isToday) {
+  document.getElementById('date').textContent = `${longDate(page.date)} · 새 글 ${page.total}건에서 추림`;
+  document.getElementById('flow-title').textContent = isToday ? '오늘의 흐름' : `${md(page.date)}(${dayName(page.date)}) 흐름`;
+  document.getElementById('themes').replaceChildren(...page.themes.map((t) => {
+    const card = el('article', 'card');
+    const use = el('p', 'use'); use.append(el('b', null, '내 일에'), document.createTextNode(t.use));
+    const ul = el('ul', 'list'); t.items.forEach((x) => ul.append(row(x)));
+    card.append(el('h3', null, t.name), el('p', 'line', t.line), use, ul); return card;
+  }));
+  const others = document.getElementById('others'); others.replaceChildren();
+  page.cats.forEach((c) => {
+    const xs = page.others.filter((x) => x.cat === c); if (!xs.length) return;
+    const box = el('section', 'cat'); box.style.setProperty('--cc', `var(${catColor(page.cats, c)})`);
+    const h = el('h4'); const name = el('span'); name.append(el('span', 'dot'), document.createTextNode(c));
+    h.append(name, el('span', 'n', `${xs.length}건`));
+    const ul = el('ul', 'list'); xs.forEach((x) => ul.append(row(x)));
+    box.append(h, ul); others.append(box);
+  });
+  const failed = page.errors ? ` · 소식을 받지 못한 곳 ${page.errors}곳` : '';
+  document.getElementById('foot').textContent = `모은 시각 ${page.collected.replace('T', ' ').slice(0, 16)} · 제목을 누르면 원문으로 갑니다 · 'N곳'은 여러 출처에서 다룬 소식${failed}`;
+}
+function drawWeek() {
+  const box = document.getElementById('week-sum');
+  const w = DATA.weekly;
+  if (w) {
+    const head = el('div', 'week-head');
+    head.append(el('p', 'meta', `${longDate(w.start)} ~ ${longDate(w.end)}`), el('p', 'big', w.headline));
+    const cards = el('div', 'themes');
+    w.points.forEach((p) => {
+      const card = el('article', 'card');
+      const use = el('p', 'use'); use.append(el('b', null, '내 일에'), document.createTextNode(p.use));
+      const ul = el('ul', 'list'); p.items.forEach((x) => ul.append(row(x)));
+      card.append(el('h3', null, p.name), el('p', 'line', p.line), use, ul); cards.append(card);
+    });
+    const wrap = el('div', 'rail'); wrap.append(head, cards); box.replaceChildren(wrap);
+  } else {
+    box.replaceChildren(el('p', 'empty', '이번 주 요약은 금요일 아침에 만들어집니다. 그전까지는 오른쪽의 요일별 흐름을 보세요.'));
+  }
+  const days = document.getElementById('days');
+  days.replaceChildren(...DATA.history.slice(0, 7).map((p) => {
+    const d = el('div', 'day');
+    const b = el('button', null, `${md(p.date)} (${dayName(p.date)})`); b.type = 'button';
+    b.addEventListener('click', () => show('day', p.date));
+    const ul = el('ul'); p.themes.forEach((t) => ul.append(el('li', null, t.name)));
+    d.append(b, ul); return d;
+  }));
+}
+
+// ── 보기 전환 ──
+const vDay = document.getElementById('v-day'), vWeek = document.getElementById('v-week'), past = document.getElementById('past');
+function show(view, date) {
+  const today = DATA.history[0];
+  const page = (date && DATA.history.find((p) => p.date === date)) || today;
+  const isToday = page.date === today.date;
+  document.getElementById('day-view').hidden = view !== 'day';
+  document.getElementById('week-view').hidden = view !== 'week';
+  vDay.setAttribute('aria-pressed', String(view === 'day' && isToday));
+  vWeek.setAttribute('aria-pressed', String(view === 'week'));
+  past.value = view === 'day' && !isToday ? page.date : '';
+  if (view === 'day') drawDay(page, isToday);
+  else { drawWeek(); document.getElementById('date').textContent = `${longDate(today.date)} 기준 · 최근 ${Math.min(7, DATA.history.length)}일`; }
+  window.scrollTo({ top: 0 });
+}
+if (DATA && DATA.history.length) {
+  past.append(new Option('날짜 고르기', ''), ...DATA.history.slice(1).map((p) => new Option(`${md(p.date)} (${dayName(p.date)})`, p.date)));
+  past.disabled = DATA.history.length < 2;
+  vDay.addEventListener('click', () => show('day'));
+  vWeek.addEventListener('click', () => show('week'));
+  past.addEventListener('change', () => { if (past.value) show('day', past.value); });
+  show(location.hash === '#week' ? 'week' : 'day');
+}
+
+// ── 직접 찾아보기: 비워 두면 설정의 기본 검색어 ──
+const q = document.getElementById('q');
+const searchLinks = () => {
+  const term = q.value.trim() || (DATA && DATA.search) || '';
+  if (!q.value && term) q.placeholder = `예: ${term}`;
+  const v = encodeURIComponent(term);
+  document.getElementById('g-week').href = term ? `https://www.google.com/search?q=${v}&tbs=qdr:w` : 'https://www.google.com/search?tbs=qdr:w';
+  document.getElementById('g-news').href = term ? `https://news.google.com/search?q=${v}&hl=ko&gl=KR&ceid=KR:ko` : 'https://news.google.com/?hl=ko&gl=KR&ceid=KR:ko';
+};
+q.addEventListener('input', searchLinks);
+searchLinks();
+</script>
+</body>
+</html>

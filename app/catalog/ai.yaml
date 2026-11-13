@@ -1,0 +1,40 @@
+# 분야: AI — 실제로 받아지는 것을 확인한 출처
+# 사용자 sources.yaml의 catalog: [id, ...]로 고른다. 설정 때 Claude가 이 목록(id·name·tags·desc)을 보고 고른다
+#
+# 널리 알려진 모델 회사·커뮤니티 위주의 기본 목록. 이 사람 일에 맞는 곳은 설정 때 Claude가 sites·news로 더한다
+#
+# tier: 1 = 꼭 따라갈 곳, 2 = 실전, 3 = 참고 (점수가 낮아 후보에서 먼저 밀린다)
+# filter: true = 분야와 상관없는 글이 많은 곳. 제목·요약에 profile.keywords 단어가 있을 때만 받는다
+# max: 한 번에 받을 최대 글 수 (기본: feeds 8, pages 5, news 3)
+
+# 1) 구독 주소(RSS·Atom)가 있는 곳
+feeds:
+  # 커뮤니티·뉴스레터
+  - {id: pytorch-kr-news, name: 파이토치 한국 뉴스, url: "https://discuss.pytorch.kr/c/news/14.rss", tier: 1, max: 12, tags: [커뮤니티, 국내], desc: "국내 AI 개발자 커뮤니티가 고른 소식"}
+  - {id: geeknews, name: 긱뉴스, url: "https://news.hada.io/rss/news", tier: 1, filter: true, max: 12, tags: [커뮤니티, 국내, 개발], desc: "국내 개발자 기술 뉴스 모음 (AI 외 글이 많아 거름)"}
+
+  # 모델 회사
+  - {id: openai-news, name: OpenAI 소식, url: "https://openai.com/news/rss.xml", org: OpenAI, tier: 1, tags: [모델 회사, 해외], desc: "OpenAI 공식 발표"}
+  - {id: google-ai-blog, name: Google AI 블로그, url: "https://blog.google/technology/ai/rss/", org: Google, tier: 1, tags: [빅테크, 해외], desc: "Google의 AI 제품 발표"}
+  - {id: deepmind-blog, name: Google DeepMind 블로그, url: "https://deepmind.google/blog/rss.xml", org: Google, tier: 1, tags: [모델 회사, 연구, 해외], desc: "Gemini 등 DeepMind 연구·모델 발표"}
+  - {id: huggingface-blog, name: Hugging Face 블로그, url: "https://huggingface.co/blog/feed.xml", org: Hugging Face, tier: 1, tags: [오픈소스, 해외], desc: "공개 모델·라이브러리 소식"}
+
+# 2) 구독 주소가 없어 목록 페이지에서 새 글 링크를 찾는 곳
+#    처음 보는 링크 = 새 글. 첫 실행은 반드시 collect --baseline (안 하면 옛 글이 쏟아진다)
+pages:
+  - {id: anthropic-news, name: Anthropic 소식, url: "https://www.anthropic.com/news", link: "^/news/[a-z0-9-]+$", org: Anthropic, tier: 1, tags: [모델 회사, 해외], desc: "Claude 모델·제품 발표"}
+  - {id: meta-ai-blog, name: Meta AI 블로그, url: "https://ai.meta.com/blog/", link: "^https://ai\\.meta\\.com/blog/[a-z0-9-]+/$", org: Meta, tier: 1, tags: [모델 회사, 해외], desc: "Llama 등 Meta AI 발표"}
+
+# 3) 구글 뉴스 검색 (지난 하루). 블로그가 없거나 막힌 곳, 회사 소식 전반
+#    lang: en = 영어판, ko = 한국어판. must = 제목에 이 단어가 있어야 받음 (엉뚱한 기사가 섞이므로)
+news:
+  - {id: news-openai, q: "OpenAI", org: OpenAI, lang: en, tier: 1, tags: [모델 회사], desc: "OpenAI 기사"}
+  - {id: news-anthropic, q: "Anthropic Claude", org: Anthropic, lang: en, tier: 1, tags: [모델 회사], desc: "Anthropic 기사"}
+  - {id: news-gemini, q: "Google Gemini", must: "Gemini|DeepMind|Gemma", org: Google, lang: en, tier: 1, tags: [모델 회사], desc: "Gemini 기사"}
+  - {id: news-meta-ai, q: "Meta AI Llama", must: "Meta|Llama|Muse", org: Meta, lang: en, tier: 1, tags: [모델 회사], desc: "Meta AI 기사"}
+  - {id: news-microsoft-ai, q: "Microsoft AI agent", must: "Microsoft|Copilot|Azure", org: Microsoft, lang: en, tier: 1, tags: [빅테크], desc: "Microsoft AI 기사"}
+  - {id: news-deepseek, q: "DeepSeek", org: DeepSeek, lang: en, tier: 1, tags: [모델 회사], desc: "DeepSeek 기사"}
+  - {id: news-qwen, q: "Alibaba Qwen", must: "Qwen|Alibaba", org: Alibaba, lang: en, tier: 1, tags: [모델 회사], desc: "Qwen 기사"}
+  - {id: news-exaone, q: "LG 엑사원", must: "엑사원|EXAONE|LG AI", org: LG AI연구원, lang: ko, tier: 2, tags: [모델 회사, 국내], desc: "LG 엑사원 기사 (블로그는 링크를 못 찾음)"}
+  - {id: news-upstage, q: "업스테이지 솔라", must: "업스테이지|Upstage", org: Upstage, lang: ko, tier: 2, tags: [모델 회사, 국내], desc: "업스테이지 기사"}
+  - {id: news-hyperclova, q: "네이버 하이퍼클로바", must: "네이버|클로바", org: 네이버, lang: ko, tier: 2, tags: [모델 회사, 국내], desc: "네이버 하이퍼클로바 기사"}
